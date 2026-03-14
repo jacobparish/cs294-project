@@ -4,7 +4,7 @@ public import Mathlib.Computability.Partrec
 public import Mathlib.Data.Option.Basic
 
 /-!
-# Gödel Numbering for Partial Recursive Functions.
+# Gödel Numbering for Partial Recursive Functions with an Oracle.
 
 This file defines `Nat.Partrec.Code`, an inductive datatype describing code for partial
 recursive functions on ℕ. It defines an encoding for these codes, and proves that the constructors
@@ -30,11 +30,6 @@ of some code.
 * `Nat.Partrec.Code.evaln_prim`: `evaln` is primitive recursive.
 * `Nat.Partrec.Code.fixed_point`: Roger's fixed point theorem.
 * `Nat.Partrec.Code.fixed_point₂`: Kleene's second recursion theorem.
-
-## References
-
-* [Mario Carneiro, *Formalizing computability theory via partial recursive functions*][carneiro2019]
-
 -/
 
 @[expose] public section
