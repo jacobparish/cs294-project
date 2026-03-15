@@ -554,49 +554,52 @@ theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : OCode
     | prec cf cg pf pg => exact pf.prec pg
     | rfind' cf pf => sorry -- exact pf.rfind' -- TODO: Fix this.
 
-/-- A modified evaluation for the code which returns an `Option ℕ` instead of a `Part ℕ`. To avoid
-undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course
-of its execution. Other than this, the semantics are the same as in `Nat.Partrec.Code.eval`.
+/-- A modified evaluation for an `OCode` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course of its execution. Moreover, the provided oracle must be a function `ℕ → Option ℕ` rather than a function `ℕ →. ℕ`. Other than this, the semantics are the same as in `Nat.Partrec.OCode.eval`.
+
+TODO: Is using `ℕ → Option ℕ` as the oracle what we want here? Maybe we want to use `List ℕ` and `.get` instead. Then "`evaln k` is primitive recursive" makes sense.
 -/
-def evaln : ℕ → Code → ℕ → Option ℕ
-  | 0, _ => fun _ => Option.none
-  | k + 1, zero => fun n => do
+def evaln : ℕ → OCode → (ℕ → Option ℕ) → ℕ → Option ℕ
+  | 0, _ => fun _ _ => Option.none
+  | k + 1, zero => fun _ n => do
     guard (n ≤ k)
     return 0
-  | k + 1, succ => fun n => do
+  | k + 1, succ => fun _ n => do
     guard (n ≤ k)
     return (Nat.succ n)
-  | k + 1, left => fun n => do
+  | k + 1, left => fun _ n => do
     guard (n ≤ k)
     return n.unpair.1
-  | k + 1, right => fun n => do
+  | k + 1, right => fun _ n => do
     guard (n ≤ k)
     pure n.unpair.2
-  | k + 1, pair cf cg => fun n => do
+  | k + 1, oracle => fun o n => do
     guard (n ≤ k)
-    Nat.pair <$> evaln (k + 1) cf n <*> evaln (k + 1) cg n
-  | k + 1, comp cf cg => fun n => do
+    o n
+  | k + 1, pair cf cg => fun o n => do
     guard (n ≤ k)
-    let x ← evaln (k + 1) cg n
-    evaln (k + 1) cf x
-  | k + 1, prec cf cg => fun n => do
+    Nat.pair <$> evaln (k + 1) cf o n <*> evaln (k + 1) cg o n
+  | k + 1, comp cf cg => fun o n => do
+    guard (n ≤ k)
+    let x ← evaln (k + 1) cg o n
+    evaln (k + 1) cf o x
+  | k + 1, prec cf cg => fun o n => do
     guard (n ≤ k)
     n.unpaired fun a n =>
-      n.casesOn (evaln (k + 1) cf a) fun y => do
-        let i ← evaln k (prec cf cg) (Nat.pair a y)
-        evaln (k + 1) cg (Nat.pair a (Nat.pair y i))
-  | k + 1, rfind' cf => fun n => do
+      n.casesOn (evaln (k + 1) cf o a) fun y => do
+        let i ← evaln k (prec cf cg) o (Nat.pair a y)
+        evaln (k + 1) cg o (Nat.pair a (Nat.pair y i))
+  | k + 1, rfind' cf => fun o n => do
     guard (n ≤ k)
     n.unpaired fun a m => do
-      let x ← evaln (k + 1) cf (Nat.pair a m)
+      let x ← evaln (k + 1) cf o (Nat.pair a m)
       if x = 0 then
         pure m
       else
-        evaln k (rfind' cf) (Nat.pair a (m + 1))
+        evaln k (rfind' cf) o (Nat.pair a (m + 1))
 
-theorem evaln_bound : ∀ {k c n x}, x ∈ evaln k c n → n < k
-  | 0, c, n, x, h => by simp [evaln] at h
-  | k + 1, c, n, x, h => by
+theorem evaln_bound : ∀ {k c g n x}, x ∈ evaln k c g n → n < k
+  | 0, c, g, n, x, h => by simp [evaln] at h
+  | k + 1, c, g, n, x, h => by
     suffices ∀ {o : Option ℕ}, x ∈ do { guard (n ≤ k); o } → n < k + 1 by
       cases c <;> rw [evaln] at h <;> exact this h
     simpa [Option.bind_eq_some_iff] using Nat.lt_succ_of_le
