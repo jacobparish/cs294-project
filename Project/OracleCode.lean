@@ -38,20 +38,21 @@ open Encodable Denumerable
 
 namespace Nat.Partrec
 
-/-- Code for partial recursive functions from ℕ to ℕ.
+/-- Code for partial recursive functions from ℕ to ℕ with an oracle.
 See `Nat.Partrec.Code.eval` for the interpretation of these constructors.
 -/
-inductive Code : Type
-  | zero : Code
-  | succ : Code
-  | left : Code
-  | right : Code
-  | pair : Code → Code → Code
-  | comp : Code → Code → Code
-  | prec : Code → Code → Code
-  | rfind' : Code → Code
+inductive OCode : Type
+  | zero : OCode
+  | succ : OCode
+  | left : OCode
+  | right : OCode
+  | oracle : OCode
+  | pair : OCode → OCode → OCode
+  | comp : OCode → OCode → OCode
+  | prec : OCode → OCode → OCode
+  | rfind' : OCode → OCode
 
-compile_inductive% Code
+compile_inductive% OCode
 
 end Nat.Partrec
 
