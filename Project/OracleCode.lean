@@ -38,28 +38,6 @@ open Encodable Denumerable
 
 namespace Nat.Partrec
 
-theorem rfind' {f} (hf : Nat.Partrec f) :
-    Nat.Partrec
-      (Nat.unpaired fun a m =>
-        (Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + m))).map (· + m)) :=
-  Partrec₂.unpaired'.2 <| by
-    refine
-      Partrec.map
-        ((@Partrec₂.unpaired' fun a b : ℕ =>
-              Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + b))).1
-          ?_)
-        (Primrec.nat_add.comp Primrec.snd <| Primrec.snd.comp Primrec.fst).to_comp.to₂
-    have : Nat.Partrec (fun a => Nat.rfind (fun n => (fun m => decide (m = 0)) <$>
-      Nat.unpaired (fun a b => f (Nat.pair (Nat.unpair a).1 (b + (Nat.unpair a).2)))
-        (Nat.pair a n))) :=
-      rfind
-        (Partrec₂.unpaired'.2
-          ((Partrec.nat_iff.2 hf).comp
-              (Primrec₂.pair.comp (Primrec.fst.comp <| Primrec.unpair.comp Primrec.fst)
-                  (Primrec.nat_add.comp Primrec.snd
-                    (Primrec.snd.comp <| Primrec.unpair.comp Primrec.fst))).to_comp))
-    simpa
-
 /-- Code for partial recursive functions from ℕ to ℕ.
 See `Nat.Partrec.Code.eval` for the interpretation of these constructors.
 -/
