@@ -432,73 +432,79 @@ theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → O
 
 end
 
-/-- The interpretation of a `Nat.Partrec.Code` as a partial function.
-* `Nat.Partrec.Code.zero`: The constant zero function.
-* `Nat.Partrec.Code.succ`: The successor function.
-* `Nat.Partrec.Code.left`: Left unpairing of a pair of ℕ (encoded by `Nat.pair`)
-* `Nat.Partrec.Code.right`: Right unpairing of a pair of ℕ (encoded by `Nat.pair`)
-* `Nat.Partrec.Code.pair`: Pairs the outputs of argument codes using `Nat.pair`.
-* `Nat.Partrec.Code.comp`: Composition of two argument codes.
-* `Nat.Partrec.Code.prec`: Primitive recursion. Given an argument of the form `Nat.pair a n`:
+/-- The interpretation of a `Nat.Partrec.OCode` as a partial function.
+* `Nat.Partrec.OCode.zero`: The constant zero function.
+* `Nat.Partrec.OCode.succ`: The successor function.
+* `Nat.Partrec.OCode.left`: Left unpairing of a pair of ℕ (encoded by `Nat.pair`)
+* `Nat.Partrec.OCode.right`: Right unpairing of a pair of ℕ (encoded by `Nat.pair`)
+* `Nat.Partrec.OCode.oracle`: The oracle function.
+* `Nat.Partrec.OCode.pair`: Pairs the outputs of argument codes using `Nat.pair`.
+* `Nat.Partrec.OCode.comp`: Composition of two argument codes.
+* `Nat.Partrec.OCode.prec`: Primitive recursion. Given an argument of the form `Nat.pair a n`:
   * If `n = 0`, returns `eval cf a`.
   * If `n = succ k`, returns `eval cg (pair a (pair k (eval (prec cf cg) (pair a k))))`
-* `Nat.Partrec.Code.rfind'`: Minimization. For `f` an argument of the form `Nat.pair a m`,
+* `Nat.Partrec.OCode.rfind'`: Minimization. For `f` an argument of the form `Nat.pair a m`,
   `rfind' f m` returns the least `a` such that `f a m = 0`, if one exists and `f b m` terminates
   for `b < a`
 -/
-def eval : Code → ℕ →. ℕ
+def eval (c : OCode) (o : ℕ →. ℕ) : ℕ →. ℕ := match c with
   | zero => pure 0
   | succ => Nat.succ
   | left => ↑fun n : ℕ => n.unpair.1
   | right => ↑fun n : ℕ => n.unpair.2
-  | pair cf cg => fun n => Nat.pair <$> eval cf n <*> eval cg n
-  | comp cf cg => fun n => eval cg n >>= eval cf
+  | oracle => o
+  | pair cf cg => fun n => Nat.pair <$> eval cf o n <*> eval cg o n
+  | comp cf cg => fun n => eval cg o n >>= eval cf o
   | prec cf cg =>
     Nat.unpaired fun a n =>
-      n.rec (eval cf a) fun y IH => do
+      n.rec (eval cf o a) fun y IH => do
         let i ← IH
-        eval cg (Nat.pair a (Nat.pair y i))
+        eval cg o (Nat.pair a (Nat.pair y i))
   | rfind' cf =>
     Nat.unpaired fun a m =>
-      (Nat.rfind fun n => (fun m => m = 0) <$> eval cf (Nat.pair a (n + m))).map (· + m)
+      (Nat.rfind fun n => (fun m => m = 0) <$> eval cf o (Nat.pair a (n + m))).map (· + m)
 
 /-- Helper lemma for the evaluation of `prec` in the base case. -/
 @[simp]
-theorem eval_prec_zero (cf cg : Code) (a : ℕ) : eval (prec cf cg) (Nat.pair a 0) = eval cf a := by
+theorem eval_prec_zero (cf cg : OCode) (o : ℕ →. ℕ) (a : ℕ) : eval (prec cf cg) o (Nat.pair a 0) = eval cf o a := by
   rw [eval, Nat.unpaired, Nat.unpair_pair]
   simp (config := { Lean.Meta.Simp.neutralConfig with proj := true }) only []
   rw [Nat.rec_zero]
 
 /-- Helper lemma for the evaluation of `prec` in the recursive case. -/
-theorem eval_prec_succ (cf cg : Code) (a k : ℕ) :
-    eval (prec cf cg) (Nat.pair a (Nat.succ k)) =
-      do {let ih ← eval (prec cf cg) (Nat.pair a k); eval cg (Nat.pair a (Nat.pair k ih))} := by
+theorem eval_prec_succ (cf cg : OCode) (o : ℕ →. ℕ) (a k : ℕ) :
+    eval (prec cf cg) o (Nat.pair a (Nat.succ k)) =
+      do {let ih ← eval (prec cf cg) o (Nat.pair a k); eval cg o (Nat.pair a (Nat.pair k ih))} := by
   rw [eval, Nat.unpaired, Part.bind_eq_bind, Nat.unpair_pair]
   simp
 
-instance : Membership (ℕ →. ℕ) Code :=
-  ⟨fun c f => eval c = f⟩
+/--
+Evaluation of `ofCode` does not depend on the oracle.
+-/
+@[simp]
+theorem eval_ofCode (c : Code) (o : ℕ →. ℕ) (n : ℕ) : (OCode.ofCode c).eval o n = c.eval n := by
+  sorry
 
 @[simp]
-theorem eval_const : ∀ n m, eval (Code.const n) m = Part.some n
-  | 0, _ => rfl
-  | n + 1, m => by simp! [eval_const n m]
+theorem eval_const : ∀ n m o, eval (OCode.const n) o m = Part.some n := by
+  simp [OCode.const]
 
 @[simp]
-theorem eval_id (n) : eval Code.id n = Part.some n := by simp! [Seq.seq, Code.id]
+theorem eval_id (n) : ∀ o, eval OCode.id o n = Part.some n := by
+  simp [OCode.id]
 
 @[simp]
-theorem eval_curry (c n x) : eval (curry c n) x = eval c (Nat.pair n x) := by simp! [Seq.seq, curry]
+theorem eval_curry (c o n x) : eval (curry c n) o x = eval c o (Nat.pair n x) := by simp! [Seq.seq, curry]
 
-theorem primrec_const : Primrec Code.const :=
+theorem primrec_const : Primrec OCode.const :=
   (_root_.Primrec.id.nat_iterate (_root_.Primrec.const zero)
     (primrec₂_comp.comp (_root_.Primrec.const succ) Primrec.snd).to₂).of_eq
     fun n => by simp; induction n <;>
-      simp [*, Code.const, Function.iterate_succ', -Function.iterate_succ]
+      simp [*, Code.const, OCode.const, OCode.ofCode, Function.iterate_succ', -Function.iterate_succ]
 
 theorem primrec₂_curry : Primrec₂ curry :=
   primrec₂_comp.comp Primrec.fst <| primrec₂_pair.comp (primrec_const.comp Primrec.snd)
-    (_root_.Primrec.const Code.id)
+    (_root_.Primrec.const OCode.id)
 
 theorem curry_inj {c₁ c₂ n₁ n₂} (h : curry c₁ n₁ = curry c₂ n₂) : c₁ = c₂ ∧ n₁ = n₂ :=
   ⟨by injection h, by
@@ -507,22 +513,22 @@ theorem curry_inj {c₁ c₂ n₁ n₂} (h : curry c₁ n₁ = curry c₂ n₂) 
     exact const_inj h₃⟩
 
 /--
-The $S_n^m$ theorem: There is a computable function, namely `Nat.Partrec.Code.curry`, that takes a
+The $S_n^m$ theorem: There is a computable function, namely `Nat.Partrec.OCode.curry`, that takes a
 program and a ℕ `n`, and returns a new program using `n` as the first argument.
 -/
 theorem smn :
-    ∃ f : Code → ℕ → Code, Computable₂ f ∧ ∀ c n x, eval (f c n) x = eval c (Nat.pair n x) :=
+    ∃ f : OCode → ℕ → OCode, Computable₂ f ∧ ∀ c o n x, eval (f c n) o x = eval c o (Nat.pair n x) :=
   ⟨curry, Primrec₂.to_comp primrec₂_curry, eval_curry⟩
 
-/-- A function is partial recursive if and only if there is a code implementing it. Therefore,
-`eval` is a **universal partial recursive function**. -/
-theorem exists_code {f : ℕ →. ℕ} : Nat.Partrec f ↔ ∃ c : Code, eval c = f := by
+/-- A function `f` is Turing reducible to `g` if and only if there is an `OCode` which evaluates to `f`, given oracle `g`. -/
+theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : OCode, eval c g = f := by
   refine ⟨fun h => ?_, ?_⟩
   · induction h with
     | zero => exact ⟨zero, rfl⟩
     | succ => exact ⟨succ, rfl⟩
     | left => exact ⟨left, rfl⟩
     | right => exact ⟨right, rfl⟩
+    | oracle g h => subst h; exact ⟨oracle, rfl⟩
     | pair pf pg hf hg =>
       rcases hf with ⟨cf, rfl⟩; rcases hg with ⟨cg, rfl⟩
       exact ⟨pair cf cg, rfl⟩
@@ -534,18 +540,19 @@ theorem exists_code {f : ℕ →. ℕ} : Nat.Partrec f ↔ ∃ c : Code, eval c 
       exact ⟨prec cf cg, rfl⟩
     | rfind pf hf =>
       rcases hf with ⟨cf, rfl⟩
-      refine ⟨comp (rfind' cf) (pair Code.id zero), ?_⟩
+      refine ⟨comp (rfind' cf) (pair OCode.id zero), ?_⟩
       simp [eval, Seq.seq, pure, PFun.pure, Part.map_id']
   · rintro ⟨c, rfl⟩
     induction c with
-    | zero => exact Nat.Partrec.zero
-    | succ => exact Nat.Partrec.succ
-    | left => exact Nat.Partrec.left
-    | right => exact Nat.Partrec.right
+    | zero => exact RecursiveIn.zero
+    | succ => exact RecursiveIn.succ
+    | left => exact RecursiveIn.left
+    | right => exact RecursiveIn.right
+    | oracle => exact TuringReducible.refl g
     | pair cf cg pf pg => exact pf.pair pg
     | comp cf cg pf pg => exact pf.comp pg
     | prec cf cg pf pg => exact pf.prec pg
-    | rfind' cf pf => exact pf.rfind'
+    | rfind' cf pf => sorry -- exact pf.rfind' -- TODO: Fix this.
 
 /-- A modified evaluation for the code which returns an `Option ℕ` instead of a `Part ℕ`. To avoid
 undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course
