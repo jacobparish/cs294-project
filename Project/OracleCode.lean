@@ -56,60 +56,73 @@ compile_inductive% OCode
 
 end Nat.Partrec
 
-namespace Nat.Partrec.Code
+namespace Nat.Partrec.OCode
 
-instance instInhabited : Inhabited Code :=
+open Nat.Partrec.Code
+
+/-- A `Nat.Partrec.Code` can be converted to a `Nat.Partrec.OCode`. -/
+def ofCode : Code → OCode
+  | .zero => zero
+  | .succ => succ
+  | .left => left
+  | .right => right
+  | .pair cf cg => pair (ofCode cf) (ofCode cg)
+  | .comp cf cg => comp (ofCode cf) (ofCode cg)
+  | .prec cf cg => prec (ofCode cf) (ofCode cg)
+  | .rfind' cf => rfind' (ofCode cf)
+
+/-- The conversion from `Code` to `OCode` is injective. -/
+theorem ofCode_inj : Function.Injective ofCode := by
+  sorry
+
+instance instInhabited : Inhabited OCode :=
   ⟨zero⟩
 
-/-- Returns a code for the constant function outputting a particular natural. -/
-protected def const : ℕ → Code
-  | 0 => zero
-  | n + 1 => comp succ (Code.const n)
+/-- An `OCode` for the constant function outputting `n`. -/
+protected def const (n : ℕ) : OCode := ofCode (Code.const n)
 
-theorem const_inj : ∀ {n₁ n₂}, Nat.Partrec.Code.const n₁ = Nat.Partrec.Code.const n₂ → n₁ = n₂
-  | 0, 0, _ => by simp
-  | n₁ + 1, n₂ + 1, h => by
-    dsimp [Nat.Partrec.Code.const] at h
-    injection h with h₁ h₂
-    simp only [const_inj h₂]
+/-- `OCode.const` is injective. -/
+theorem const_inj : Function.Injective OCode.const := by
+  sorry
 
-/-- A code for the identity function. -/
-protected def id : Code :=
-  pair left right
+/-- An `OCode` for the identity function. -/
+protected def id : OCode := ofCode (Code.id)
 
 /-- Given a code `c` taking a pair as input, returns a code using `n` as the first argument to `c`.
 -/
-def curry (c : Code) (n : ℕ) : Code :=
-  comp c (pair (Code.const n) Code.id)
+def curry (c : OCode) (n : ℕ) : OCode :=
+  comp c (pair (OCode.const n) OCode.id)
 
-/-- An encoding of a `Nat.Partrec.Code` as a ℕ. -/
-def encodeCode : Code → ℕ
+/-- An encoding of a `Nat.Partrec.OCode` as a ℕ. -/
+def encodeCode : OCode → ℕ
   | zero => 0
   | succ => 1
   | left => 2
   | right => 3
-  | pair cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 4
-  | comp cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg) + 1) + 4
-  | prec cf cg => (2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 1) + 4
-  | rfind' cf => (2 * (2 * encodeCode cf + 1) + 1) + 4
+  | oracle => 4
+  | pair cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 5
+  | comp cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg) + 1) + 5
+  | prec cf cg => (2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 1) + 5
+  | rfind' cf => (2 * (2 * encodeCode cf + 1) + 1) + 5
 
 /--
-A decoder for `Nat.Partrec.Code.encodeCode`, taking any ℕ to the `Nat.Partrec.Code` it represents.
+A decoder for `Nat.Partrec.OCode.encodeCode`, taking any ℕ to the `Nat.Partrec.OCode` it represents.
 -/
-def ofNatCode : ℕ → Code
+def ofNatCode : ℕ → OCode
   | 0 => zero
   | 1 => succ
   | 2 => left
   | 3 => right
-  | n + 4 =>
+  | 4 => oracle
+  | n + 5 =>
     let m := n.div2.div2
-    have hm : m < n + 4 := by
+    have hm : m < n + 5 := by
       simp only [m, div2_val]
       exact
         lt_of_le_of_lt (le_trans (Nat.div_le_self _ _) (Nat.div_le_self _ _))
           (Nat.succ_le_succ (Nat.le_add_right _ _))
-    have _m1 : m.unpair.1 < n + 4 := lt_of_le_of_lt m.unpair_left_le hm
-    have _m2 : m.unpair.2 < n + 4 := lt_of_le_of_lt m.unpair_right_le hm
+    have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
+    have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
     match n.bodd, n.div2.bodd with
     | false, false => pair (ofNatCode m.unpair.1) (ofNatCode m.unpair.2)
     | false, true => comp (ofNatCode m.unpair.1) (ofNatCode m.unpair.2)
@@ -123,26 +136,27 @@ private theorem encode_ofNatCode : ∀ n, encodeCode (ofNatCode n) = n
   | 1 => by simp [ofNatCode, encodeCode]
   | 2 => by simp [ofNatCode, encodeCode]
   | 3 => by simp [ofNatCode, encodeCode]
-  | n + 4 => by
+  | 4 => by simp [ofNatCode, encodeCode]
+  | n + 5 => by
     let m := n.div2.div2
-    have hm : m < n + 4 := by
+    have hm : m < n + 5 := by
       simp only [m, div2_val]
       exact
         lt_of_le_of_lt (le_trans (Nat.div_le_self _ _) (Nat.div_le_self _ _))
           (Nat.succ_le_succ (Nat.le_add_right _ _))
-    have _m1 : m.unpair.1 < n + 4 := lt_of_le_of_lt m.unpair_left_le hm
-    have _m2 : m.unpair.2 < n + 4 := lt_of_le_of_lt m.unpair_right_le hm
+    have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
+    have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
     have IH := encode_ofNatCode m
     have IH1 := encode_ofNatCode m.unpair.1
     have IH2 := encode_ofNatCode m.unpair.2
     conv_rhs => rw [← Nat.bit_bodd_div2 n, ← Nat.bit_bodd_div2 n.div2]
-    simp only [ofNatCode.eq_5]
+    simp only [ofNatCode.eq_6]
     cases n.bodd <;> cases n.div2.bodd <;>
       simp [m, encodeCode, IH, IH1, IH2, Nat.bit_val]
 
 set_option backward.privateInPublic true in
 set_option backward.privateInPublic.warn false in
-instance instDenumerable : Denumerable Code :=
+instance instDenumerable : Denumerable OCode :=
   mk'
     ⟨encodeCode, ofNatCode, fun c => by
         induction c <;> simp [encodeCode, ofNatCode, Nat.div2_val, *],
@@ -151,7 +165,7 @@ instance instDenumerable : Denumerable Code :=
 theorem encodeCode_eq : encode = encodeCode :=
   rfl
 
-theorem ofNatCode_eq : ofNat Code = ofNatCode :=
+theorem ofNatCode_eq : ofNat OCode = ofNatCode :=
   rfl
 
 theorem encode_lt_pair (cf cg) :
@@ -159,7 +173,7 @@ theorem encode_lt_pair (cf cg) :
   simp only [encodeCode_eq, encodeCode]
   have := Nat.mul_le_mul_right (Nat.pair cf.encodeCode cg.encodeCode) (by decide : 1 ≤ 2 * 2)
   rw [one_mul, mul_assoc] at this
-  have := lt_of_le_of_lt this (lt_add_of_pos_right _ (by decide : 0 < 4))
+  have := lt_of_le_of_lt this (lt_add_of_pos_right _ (by decide : 0 < 5))
   exact ⟨lt_of_le_of_lt (Nat.left_le_pair _ _) this, lt_of_le_of_lt (Nat.right_le_pair _ _) this⟩
 
 theorem encode_lt_comp (cf cg) :
@@ -176,7 +190,7 @@ theorem encode_lt_rfind' (cf) : encode cf < encode (rfind' cf) := by
   simp only [encodeCode_eq, encodeCode]
   lia
 
-end Nat.Partrec.Code
+end Nat.Partrec.OCode
 
 section
 open Primrec
