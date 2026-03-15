@@ -1,7 +1,7 @@
 module
 
-public import Mathlib.Computability.Partrec
-public import Mathlib.Data.Option.Basic
+public import Mathlib.Computability.PartrecCode
+public import Mathlib.Computability.TuringDegree
 
 /-!
 # Gödel Numbering for Partial Recursive Functions with an Oracle.
