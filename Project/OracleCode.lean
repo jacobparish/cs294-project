@@ -16,20 +16,20 @@ It also defines the evaluation of an `OCode` as a partial function, and proves t
 
 ## Main Definitions
 
-* `Nat.Partrec.Code`: Inductive datatype for partial recursive codes.
-* `Nat.Partrec.Code.encodeCode`: A (computable) encoding of codes as natural numbers.
-* `Nat.Partrec.Code.ofNatCode`: The inverse of this encoding.
-* `Nat.Partrec.Code.eval`: The interpretation of a `Nat.Partrec.Code` as a partial function.
+* `Nat.Partrec.OCode`: Inductive datatype for partial recursive functions with an oracle.
+* `Nat.Partrec.OCode.encodeCode`: A (computable) encoding of an `OCode` as a natural number.
+* `Nat.Partrec.OCode.ofNatCode`: The inverse of this encoding.
+* `Nat.Partrec.OCode.eval`: The interpretation of an `OCode` as a partial function.
 
 ## Main Results
 
-* `Nat.Partrec.Code.rec_prim`: Recursion on `Nat.Partrec.Code` is primitive recursive.
-* `Nat.Partrec.Code.rec_computable`: Recursion on `Nat.Partrec.Code` is computable.
-* `Nat.Partrec.Code.smn`: The $S_n^m$ theorem.
-* `Nat.Partrec.Code.exists_code`: Partial recursiveness is equivalent to being the eval of a code.
-* `Nat.Partrec.Code.evaln_prim`: `evaln` is primitive recursive.
-* `Nat.Partrec.Code.fixed_point`: Roger's fixed point theorem.
-* `Nat.Partrec.Code.fixed_point₂`: Kleene's second recursion theorem.
+* `Nat.Partrec.OCode.rec_prim`: Recursion on `Nat.Partrec.OCode` is primitive recursive.
+* `Nat.Partrec.OCode.rec_computable`: Recursion on `Nat.Partrec.OCode` is computable.
+* `Nat.Partrec.OCode.smn`: The $S_n^m$ theorem.
+* `Nat.Partrec.OCode.exists_code`: Partial recursiveness is equivalent to being the eval of a code.
+* `Nat.Partrec.OCode.evaln_prim`: `evaln` is primitive recursive.
+* `Nat.Partrec.OCode.fixed_point`: Roger's fixed point theorem.
+* `Nat.Partrec.OCode.fixed_point₂`: Kleene's second recursion theorem.
 -/
 
 @[expose] public section
