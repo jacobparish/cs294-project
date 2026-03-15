@@ -6,13 +6,13 @@ public import Mathlib.Computability.TuringDegree
 /-!
 # Gödel Numbering for Partial Recursive Functions with an Oracle.
 
-This file defines `Nat.Partrec.Code`, an inductive datatype describing code for partial
-recursive functions on ℕ. It defines an encoding for these codes, and proves that the constructors
-are primitive recursive with respect to the encoding.
+This file is a "relativized" version of `Mathlib/Computability/PartrecCode.lean`.
 
-It also defines the evaluation of these codes as partial functions using `PFun`, and proves that a
-function is partially recursive (as defined by `Nat.Partrec`) if and only if it is the evaluation
-of some code.
+It defines `OCode`, an inductive datatype describing codes for partial recursive functions on ℕ with an oracle. It defines an encoding for these codes, and proves that the constructors are primitive recursive with respect to the encoding.
+
+Note that although `RecursiveIn` takes a set of oracles, `OCode` allows just a single oracle. Another option would have been to allow a family of oracles indexed by a `Primcodable` type (i.e., we would define a structure `OCode (α : Type*) [Primcodable α]`). But (1) such a family can be computably encoded as a single oracle anyway, and (2) the need to consider indexed families of oracles seems rare enough that it was not worth the extra complication.
+
+It also defines the evaluation of an `OCode` as a partial function, and proves that a function `f` is Turing reducible to `g` if and only if it is the evaluation of some `OCode` using `g` as an oracle.
 
 ## Main Definitions
 
