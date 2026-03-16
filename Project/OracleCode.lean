@@ -23,11 +23,11 @@ It also defines the evaluation of an `OCode` as a partial function, and proves t
 
 ## Main Results
 
-* `Nat.Partrec.OCode.rec_prim`: Recursion on `Nat.Partrec.OCode` is primitive recursive.
-* `Nat.Partrec.OCode.rec_computable`: Recursion on `Nat.Partrec.OCode` is computable.
+* `Nat.Partrec.OCode.primrec_recOn`: Recursion on `Nat.Partrec.OCode` is primitive recursive.
+* `Nat.Partrec.OCode.computable_recOn`: Recursion on `Nat.Partrec.OCode` is computable.
 * `Nat.Partrec.OCode.smn`: The $S_n^m$ theorem.
 * `Nat.Partrec.OCode.exists_code`: Partial recursiveness is equivalent to being the eval of a code.
-* `Nat.Partrec.OCode.evaln_prim`: `evaln` is primitive recursive.
+* `Nat.Partrec.OCode.primrec_evaln`: `evaln` is primitive recursive.
 * `Nat.Partrec.OCode.fixed_point`: Roger's fixed point theorem.
 * `Nat.Partrec.OCode.fixed_point₂`: Kleene's second recursion theorem.
 -/
