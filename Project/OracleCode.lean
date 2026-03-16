@@ -360,76 +360,76 @@ theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → O
     let F (a : α) (c : OCode) : σ :=
       Nat.Partrec.OCode.recOn c (z a) (s a) (l a) (r a) (o a) (PR a) (CO a) (PC a) (RF a)
     Computable fun a => F a (c a) := by
-  sorry -- TODO: Update this proof for OCode.
-  -- TODO(Mario): less copy-paste from previous proof
-  -- intro _ _ _ _ F
-  -- let G₁ : (α × List σ) × ℕ × ℕ → Option σ := fun p =>
-  --   letI a := p.1.1; letI IH := p.1.2; letI n := p.2.1; letI m := p.2.2
-  --   IH[m]?.bind fun s =>
-  --   IH[m.unpair.1]?.bind fun s₁ =>
-  --   IH[m.unpair.2]?.map fun s₂ =>
-  --   cond n.bodd
-  --     (cond n.div2.bodd (rf a (ofNat Code m, s))
-  --       (pc a (ofNat Code m.unpair.1, ofNat Code m.unpair.2, s₁, s₂)))
-  --     (cond n.div2.bodd (co a (ofNat Code m.unpair.1, ofNat Code m.unpair.2, s₁, s₂))
-  --       (pr a (ofNat Code m.unpair.1, ofNat Code m.unpair.2, s₁, s₂)))
-  -- have : Computable G₁ := by
-  --   refine option_bind (list_getElem?.comp (snd.comp fst) (snd.comp snd)) <| .mk ?_
-  --   refine option_bind ((list_getElem?.comp (snd.comp fst)
-  --     (fst.comp <| Computable.unpair.comp (snd.comp snd))).comp fst) <| .mk ?_
-  --   refine option_map ((list_getElem?.comp (snd.comp fst)
-  --     (snd.comp <| Computable.unpair.comp (snd.comp snd))).comp <| fst.comp fst) <| .mk ?_
-  --   exact
-  --     have a := fst.comp (fst.comp <| fst.comp <| fst.comp fst)
-  --     have n := fst.comp (snd.comp <| fst.comp <| fst.comp fst)
-  --     have m := snd.comp (snd.comp <| fst.comp <| fst.comp fst)
-  --     have m₁ := fst.comp (Computable.unpair.comp m)
-  --     have m₂ := snd.comp (Computable.unpair.comp m)
-  --     have s := snd.comp (fst.comp fst)
-  --     have s₁ := snd.comp fst
-  --     have s₂ := snd
-  --     (nat_bodd.comp n).cond
-  --       ((nat_bodd.comp <| nat_div2.comp n).cond
-  --         (hrf.comp a (((Computable.ofNat Code).comp m).pair s))
-  --         (hpc.comp a (((Computable.ofNat Code).comp m₁).pair <|
-  --           ((Computable.ofNat Code).comp m₂).pair <| s₁.pair s₂)))
-  --       (Computable.cond (nat_bodd.comp <| nat_div2.comp n)
-  --         (hco.comp a (((Computable.ofNat Code).comp m₁).pair <|
-  --           ((Computable.ofNat Code).comp m₂).pair <| s₁.pair s₂))
-  --         (hpr.comp a (((Computable.ofNat Code).comp m₁).pair <|
-  --           ((Computable.ofNat Code).comp m₂).pair <| s₁.pair s₂)))
-  -- let G : α → List σ → Option σ := fun a IH =>
-  --   IH.length.casesOn (some (z a)) fun n =>
-  --   n.casesOn (some (s a)) fun n =>
-  --   n.casesOn (some (l a)) fun n =>
-  --   n.casesOn (some (r a)) fun n =>
-  --   G₁ ((a, IH), n, n.div2.div2)
-  -- have : Computable₂ G := .mk <|
-  --   nat_casesOn (list_length.comp snd) (option_some_iff.2 (hz.comp fst)) <| .mk <|
-  --   nat_casesOn snd (option_some_iff.2 (hs.comp (fst.comp fst))) <| .mk <|
-  --   nat_casesOn snd (option_some_iff.2 (hl.comp (fst.comp <| fst.comp fst))) <| .mk <|
-  --   nat_casesOn snd (option_some_iff.2 (hr.comp (fst.comp <| fst.comp <| fst.comp fst))) <| .mk <|
-  --   this.comp <|
-  --     ((fst.pair snd).comp <| fst.comp <| fst.comp <| fst.comp <| fst).pair <|
-  --     snd.pair <| nat_div2.comp <| nat_div2.comp snd
-  -- refine (nat_strong_rec (fun a n => F a (ofNat Code n)) this.to₂ fun a n => ?_)
-  --   |>.comp .id (encode_iff.2 hc) |>.of_eq fun a => by simp
-  -- iterate 4 rcases n with - | n; · simp [ofNatOCode_eq, ofNatOCode]; rfl
-  -- simp only [G]; rw [List.length_map, List.length_range]
-  -- let m := n.div2.div2
-  -- change G₁ ((a, (List.range (n + 4)).map fun n => F a (ofNat Code n)), n, m)
-  --   = some (F a (ofNat Code (n + 4)))
-  -- have hm : m < n + 4 := by
-  --   simp only [m, div2_val]
-  --   exact lt_of_le_of_lt
-  --     (le_trans (Nat.div_le_self ..) (Nat.div_le_self ..))
-  --     (Nat.succ_le_succ (Nat.le_add_right ..))
-  -- have m1 : m.unpair.1 < n + 4 := lt_of_le_of_lt m.unpair_left_le hm
-  -- have m2 : m.unpair.2 < n + 4 := lt_of_le_of_lt m.unpair_right_le hm
-  -- simp [G₁, m, hm, m1, m2]
-  -- rw [show ofNat Code (n + 4) = ofNatOCode (n + 4) from rfl]
-  -- simp [ofNatOCode]
-  -- cases n.bodd <;> cases n.div2.bodd <;> rfl
+  intro _ _ _ _ F
+  let G₁ : (α × List σ) × ℕ × ℕ → Option σ := fun p =>
+    letI a := p.1.1; letI IH := p.1.2; letI n := p.2.1; letI m := p.2.2
+    IH[m]?.bind fun s =>
+    IH[m.unpair.1]?.bind fun s₁ =>
+    IH[m.unpair.2]?.map fun s₂ =>
+    cond n.bodd
+      (cond n.div2.bodd (rf a (ofNat OCode m, s))
+        (pc a (ofNat OCode m.unpair.1, ofNat OCode m.unpair.2, s₁, s₂)))
+      (cond n.div2.bodd (co a (ofNat OCode m.unpair.1, ofNat OCode m.unpair.2, s₁, s₂))
+        (pr a (ofNat OCode m.unpair.1, ofNat OCode m.unpair.2, s₁, s₂)))
+  have : Computable G₁ := by
+    refine option_bind (list_getElem?.comp (snd.comp fst) (snd.comp snd)) <| .mk ?_
+    refine option_bind ((list_getElem?.comp (snd.comp fst)
+      (fst.comp <| Computable.unpair.comp (snd.comp snd))).comp fst) <| .mk ?_
+    refine option_map ((list_getElem?.comp (snd.comp fst)
+      (snd.comp <| Computable.unpair.comp (snd.comp snd))).comp <| fst.comp fst) <| .mk ?_
+    exact
+      have a := fst.comp (fst.comp <| fst.comp <| fst.comp fst)
+      have n := fst.comp (snd.comp <| fst.comp <| fst.comp fst)
+      have m := snd.comp (snd.comp <| fst.comp <| fst.comp fst)
+      have m₁ := fst.comp (Computable.unpair.comp m)
+      have m₂ := snd.comp (Computable.unpair.comp m)
+      have s := snd.comp (fst.comp fst)
+      have s₁ := snd.comp fst
+      have s₂ := snd
+      (nat_bodd.comp n).cond
+        ((nat_bodd.comp <| nat_div2.comp n).cond
+          (hrf.comp a (((Computable.ofNat OCode).comp m).pair s))
+          (hpc.comp a (((Computable.ofNat OCode).comp m₁).pair <|
+            ((Computable.ofNat OCode).comp m₂).pair <| s₁.pair s₂)))
+        (Computable.cond (nat_bodd.comp <| nat_div2.comp n)
+          (hco.comp a (((Computable.ofNat OCode).comp m₁).pair <|
+            ((Computable.ofNat OCode).comp m₂).pair <| s₁.pair s₂))
+          (hpr.comp a (((Computable.ofNat OCode).comp m₁).pair <|
+            ((Computable.ofNat OCode).comp m₂).pair <| s₁.pair s₂)))
+  let G : α → List σ → Option σ := fun a IH =>
+    IH.length.casesOn (some (z a)) fun n =>
+    n.casesOn (some (s a)) fun n =>
+    n.casesOn (some (l a)) fun n =>
+    n.casesOn (some (r a)) fun n =>
+    n.casesOn (some (o a)) fun n =>
+    G₁ ((a, IH), n, n.div2.div2)
+  have : Computable₂ G := .mk <|
+    nat_casesOn (list_length.comp snd) (option_some_iff.2 (hz.comp fst)) <| .mk <|
+    nat_casesOn snd (option_some_iff.2 (hs.comp (fst.comp fst))) <| .mk <|
+    nat_casesOn snd (option_some_iff.2 (hl.comp (fst.comp <| fst.comp fst))) <| .mk <|
+    nat_casesOn snd (option_some_iff.2 (hr.comp (fst.comp <| fst.comp <| fst.comp fst))) <| .mk <|
+    nat_casesOn snd (option_some_iff.2 (ho.comp (fst.comp <| fst.comp <| fst.comp <| fst.comp fst))) <| .mk <|
+    this.comp <|
+      ((fst.pair snd).comp <| fst.comp <| fst.comp <| fst.comp <| fst.comp <| fst).pair <|
+      snd.pair <| nat_div2.comp <| nat_div2.comp snd
+  refine (nat_strong_rec (fun a n => F a (ofNat OCode n)) this.to₂ fun a n => ?_)
+    |>.comp .id (encode_iff.2 hc) |>.of_eq fun a => by simp
+  iterate 5 rcases n with - | n; · simp [ofNatOCode_eq, ofNatOCode]; rfl
+  simp only [G]; rw [List.length_map, List.length_range]
+  let m := n.div2.div2
+  change G₁ ((a, (List.range (n + 5)).map fun n => F a (ofNat OCode n)), n, m)
+    = some (F a (ofNat OCode (n + 5)))
+  have hm : m < n + 5 := by
+    simp only [m, div2_val]
+    exact lt_of_le_of_lt
+      (le_trans (Nat.div_le_self ..) (Nat.div_le_self ..))
+      (Nat.succ_le_succ (Nat.le_add_right ..))
+  have m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
+  have m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
+  simp [G₁, m, hm, m1, m2]
+  rw [show ofNat OCode (n + 5) = ofNatOCode (n + 5) from rfl]
+  simp [ofNatOCode]
+  cases n.bodd <;> cases n.div2.bodd <;> rfl
 
 end
 
