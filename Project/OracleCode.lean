@@ -17,8 +17,8 @@ It also defines the evaluation of an `OCode` as a partial function, and proves t
 ## Main Definitions
 
 * `Nat.Partrec.OCode`: Inductive datatype for partial recursive functions with an oracle.
-* `Nat.Partrec.OCode.encodeCode`: A (computable) encoding of an `OCode` as a natural number.
-* `Nat.Partrec.OCode.ofNatCode`: The inverse of this encoding.
+* `Nat.Partrec.OCode.encodeOCode`: A (computable) encoding of an `OCode` as a natural number.
+* `Nat.Partrec.OCode.ofNatOCode`: The inverse of this encoding.
 * `Nat.Partrec.OCode.eval`: The interpretation of an `OCode` as a partial function.
 
 ## Main Results
@@ -94,21 +94,21 @@ def curry (c : OCode) (n : ℕ) : OCode :=
   comp c (pair (OCode.const n) OCode.id)
 
 /-- An encoding of a `Nat.Partrec.OCode` as a ℕ. -/
-def encodeCode : OCode → ℕ
+def encodeOCode : OCode → ℕ
   | zero => 0
   | succ => 1
   | left => 2
   | right => 3
   | oracle => 4
-  | pair cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 5
-  | comp cf cg => 2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg) + 1) + 5
-  | prec cf cg => (2 * (2 * Nat.pair (encodeCode cf) (encodeCode cg)) + 1) + 5
-  | rfind' cf => (2 * (2 * encodeCode cf + 1) + 1) + 5
+  | pair cf cg => 2 * (2 * Nat.pair (encodeOCode cf) (encodeOCode cg)) + 5
+  | comp cf cg => 2 * (2 * Nat.pair (encodeOCode cf) (encodeOCode cg) + 1) + 5
+  | prec cf cg => (2 * (2 * Nat.pair (encodeOCode cf) (encodeOCode cg)) + 1) + 5
+  | rfind' cf => (2 * (2 * encodeOCode cf + 1) + 1) + 5
 
 /--
-A decoder for `Nat.Partrec.OCode.encodeCode`, taking any ℕ to the `Nat.Partrec.OCode` it represents.
+A decoder for `Nat.Partrec.OCode.encodeOCode`, taking any ℕ to the `Nat.Partrec.OCode` it represents.
 -/
-def ofNatCode : ℕ → OCode
+def ofNatOCode : ℕ → OCode
   | 0 => zero
   | 1 => succ
   | 2 => left
@@ -124,19 +124,19 @@ def ofNatCode : ℕ → OCode
     have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
     have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
     match n.bodd, n.div2.bodd with
-    | false, false => pair (ofNatCode m.unpair.1) (ofNatCode m.unpair.2)
-    | false, true => comp (ofNatCode m.unpair.1) (ofNatCode m.unpair.2)
-    | true, false => prec (ofNatCode m.unpair.1) (ofNatCode m.unpair.2)
-    | true, true => rfind' (ofNatCode m)
+    | false, false => pair (ofNatOCode m.unpair.1) (ofNatOCode m.unpair.2)
+    | false, true => comp (ofNatOCode m.unpair.1) (ofNatOCode m.unpair.2)
+    | true, false => prec (ofNatOCode m.unpair.1) (ofNatOCode m.unpair.2)
+    | true, true => rfind' (ofNatOCode m)
 
 set_option backward.privateInPublic true in
-/-- Proof that `Nat.Partrec.Code.ofNatCode` is the inverse of `Nat.Partrec.Code.encodeCode` -/
-private theorem encode_ofNatCode : ∀ n, encodeCode (ofNatCode n) = n
-  | 0 => by simp [ofNatCode, encodeCode]
-  | 1 => by simp [ofNatCode, encodeCode]
-  | 2 => by simp [ofNatCode, encodeCode]
-  | 3 => by simp [ofNatCode, encodeCode]
-  | 4 => by simp [ofNatCode, encodeCode]
+/-- Proof that `Nat.Partrec.Code.ofNatOCode` is the inverse of `Nat.Partrec.Code.encodeOCode` -/
+private theorem encode_ofNatOCode : ∀ n, encodeOCode (ofNatOCode n) = n
+  | 0 => by simp [ofNatOCode, encodeOCode]
+  | 1 => by simp [ofNatOCode, encodeOCode]
+  | 2 => by simp [ofNatOCode, encodeOCode]
+  | 3 => by simp [ofNatOCode, encodeOCode]
+  | 4 => by simp [ofNatOCode, encodeOCode]
   | n + 5 => by
     let m := n.div2.div2
     have hm : m < n + 5 := by
@@ -146,48 +146,48 @@ private theorem encode_ofNatCode : ∀ n, encodeCode (ofNatCode n) = n
           (Nat.succ_le_succ (Nat.le_add_right _ _))
     have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
     have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
-    have IH := encode_ofNatCode m
-    have IH1 := encode_ofNatCode m.unpair.1
-    have IH2 := encode_ofNatCode m.unpair.2
+    have IH := encode_ofNatOCode m
+    have IH1 := encode_ofNatOCode m.unpair.1
+    have IH2 := encode_ofNatOCode m.unpair.2
     conv_rhs => rw [← Nat.bit_bodd_div2 n, ← Nat.bit_bodd_div2 n.div2]
-    simp only [ofNatCode.eq_6]
+    simp only [ofNatOCode.eq_6]
     cases n.bodd <;> cases n.div2.bodd <;>
-      simp [m, encodeCode, IH, IH1, IH2, Nat.bit_val]
+      simp [m, encodeOCode, IH, IH1, IH2, Nat.bit_val]
 
 set_option backward.privateInPublic true in
 set_option backward.privateInPublic.warn false in
 instance instDenumerable : Denumerable OCode :=
   mk'
-    ⟨encodeCode, ofNatCode, fun c => by
-        induction c <;> simp [encodeCode, ofNatCode, Nat.div2_val, *],
-      encode_ofNatCode⟩
+    ⟨encodeOCode, ofNatOCode, fun c => by
+        induction c <;> simp [encodeOCode, ofNatOCode, Nat.div2_val, *],
+      encode_ofNatOCode⟩
 
-theorem encodeCode_eq : encode = encodeCode :=
+theorem encodeOCode_eq : encode = encodeOCode :=
   rfl
 
-theorem ofNatCode_eq : ofNat OCode = ofNatCode :=
+theorem ofNatOCode_eq : ofNat OCode = ofNatOCode :=
   rfl
 
 theorem encode_lt_pair (cf cg) :
     encode cf < encode (pair cf cg) ∧ encode cg < encode (pair cf cg) := by
-  simp only [encodeCode_eq, encodeCode]
-  have := Nat.mul_le_mul_right (Nat.pair cf.encodeCode cg.encodeCode) (by decide : 1 ≤ 2 * 2)
+  simp only [encodeOCode_eq, encodeOCode]
+  have := Nat.mul_le_mul_right (Nat.pair cf.encodeOCode cg.encodeOCode) (by decide : 1 ≤ 2 * 2)
   rw [one_mul, mul_assoc] at this
   have := lt_of_le_of_lt this (lt_add_of_pos_right _ (by decide : 0 < 5))
   exact ⟨lt_of_le_of_lt (Nat.left_le_pair _ _) this, lt_of_le_of_lt (Nat.right_le_pair _ _) this⟩
 
 theorem encode_lt_comp (cf cg) :
     encode cf < encode (comp cf cg) ∧ encode cg < encode (comp cf cg) := by
-  have : encode (pair cf cg) < encode (comp cf cg) := by simp [encodeCode_eq, encodeCode]
+  have : encode (pair cf cg) < encode (comp cf cg) := by simp [encodeOCode_eq, encodeOCode]
   exact (encode_lt_pair cf cg).imp (fun h => lt_trans h this) fun h => lt_trans h this
 
 theorem encode_lt_prec (cf cg) :
     encode cf < encode (prec cf cg) ∧ encode cg < encode (prec cf cg) := by
-  have : encode (pair cf cg) < encode (prec cf cg) := by simp [encodeCode_eq, encodeCode]
+  have : encode (pair cf cg) < encode (prec cf cg) := by simp [encodeOCode_eq, encodeOCode]
   exact (encode_lt_pair cf cg).imp (fun h => lt_trans h this) fun h => lt_trans h this
 
 theorem encode_lt_rfind' (cf) : encode cf < encode (rfind' cf) := by
-  simp only [encodeCode_eq, encodeCode]
+  simp only [encodeOCode_eq, encodeOCode]
   lia
 
 end Nat.Partrec.OCode
@@ -300,7 +300,7 @@ theorem primrec_recOn' {α σ}
   --     snd.pair <| nat_div2.comp <| nat_div2.comp snd
   -- refine (nat_strong_rec (fun a n => F a (ofNat Code n)) this.to₂ fun a n => ?_)
   --   |>.comp .id (encode_iff.2 hc) |>.of_eq fun a => by simp
-  -- iterate 4 rcases n with - | n; · simp [ofNatCode_eq, ofNatCode]; rfl
+  -- iterate 4 rcases n with - | n; · simp [ofNatOCode_eq, ofNatOCode]; rfl
   -- simp only [G]; rw [List.length_map, List.length_range]
   -- let m := n.div2.div2
   -- change G₁ ((a, (List.range (n + 4)).map fun n => F a (ofNat Code n)), n, m)
@@ -313,8 +313,8 @@ theorem primrec_recOn' {α σ}
   -- have m1 : m.unpair.1 < n + 4 := lt_of_le_of_lt m.unpair_left_le hm
   -- have m2 : m.unpair.2 < n + 4 := lt_of_le_of_lt m.unpair_right_le hm
   -- simp [G₁, m, hm, m1, m2]
-  -- rw [show ofNat Code (n + 4) = ofNatCode (n + 4) from rfl]
-  -- simp [ofNatCode]
+  -- rw [show ofNat Code (n + 4) = ofNatOCode (n + 4) from rfl]
+  -- simp [ofNatOCode]
   -- cases n.bodd <;> cases n.div2.bodd <;> rfl
 
 /-- Recursion on `Nat.Partrec.OCode` is primitive recursive. -/
@@ -413,7 +413,7 @@ theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → O
   --     snd.pair <| nat_div2.comp <| nat_div2.comp snd
   -- refine (nat_strong_rec (fun a n => F a (ofNat Code n)) this.to₂ fun a n => ?_)
   --   |>.comp .id (encode_iff.2 hc) |>.of_eq fun a => by simp
-  -- iterate 4 rcases n with - | n; · simp [ofNatCode_eq, ofNatCode]; rfl
+  -- iterate 4 rcases n with - | n; · simp [ofNatOCode_eq, ofNatOCode]; rfl
   -- simp only [G]; rw [List.length_map, List.length_range]
   -- let m := n.div2.div2
   -- change G₁ ((a, (List.range (n + 4)).map fun n => F a (ofNat Code n)), n, m)
@@ -426,8 +426,8 @@ theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → O
   -- have m1 : m.unpair.1 < n + 4 := lt_of_le_of_lt m.unpair_left_le hm
   -- have m2 : m.unpair.2 < n + 4 := lt_of_le_of_lt m.unpair_right_le hm
   -- simp [G₁, m, hm, m1, m2]
-  -- rw [show ofNat Code (n + 4) = ofNatCode (n + 4) from rfl]
-  -- simp [ofNatCode]
+  -- rw [show ofNat Code (n + 4) = ofNatOCode (n + 4) from rfl]
+  -- simp [ofNatOCode]
   -- cases n.bodd <;> cases n.div2.bodd <;> rfl
 
 end
