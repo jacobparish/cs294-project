@@ -483,8 +483,8 @@ theorem eval_prec_succ (cf cg : OCode) (o : ℕ →. ℕ) (a k : ℕ) :
 Evaluation of `ofCode` does not depend on the oracle.
 -/
 @[simp]
-theorem eval_ofCode (c : Code) (o : ℕ →. ℕ) (n : ℕ) : (OCode.ofCode c).eval o n = c.eval n := by
-  sorry
+theorem eval_ofCode (c : Code) (o : ℕ →. ℕ) : (OCode.ofCode c).eval o = c.eval := by
+  induction c with simp [ofCode, eval, Code.eval, *]
 
 @[simp]
 theorem eval_const : ∀ n m o, eval (OCode.const n) o m = Part.some n := by
