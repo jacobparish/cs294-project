@@ -26,7 +26,7 @@ It also defines the evaluation of an `OCode` as a partial function, and proves t
 * `Nat.Partrec.OCode.primrec_recOn`: Recursion on `Nat.Partrec.OCode` is primitive recursive.
 * `Nat.Partrec.OCode.computable_recOn`: Recursion on `Nat.Partrec.OCode` is computable.
 * `Nat.Partrec.OCode.smn`: The $S_n^m$ theorem.
-* `Nat.Partrec.OCode.exists_code`: Partial recursiveness is equivalent to being the eval of a code.
+* `Nat.Partrec.OCode.exists_code`: Being Turing reducible to `g` is equivalent to being the eval of an `OCode` with oracle `g`.
 * `Nat.Partrec.OCode.primrec_evaln`: `evaln` is primitive recursive.
 * `Nat.Partrec.OCode.fixed_point`: Roger's fixed point theorem.
 * `Nat.Partrec.OCode.fixed_point₂`: Kleene's second recursion theorem.
@@ -39,7 +39,7 @@ open Encodable Denumerable
 namespace Nat.Partrec
 
 /-- Code for partial recursive functions from ℕ to ℕ with an oracle.
-See `Nat.Partrec.Code.eval` for the interpretation of these constructors.
+See `Nat.Partrec.OCode.eval` for the interpretation of these constructors.
 -/
 inductive OCode : Type
   | zero : OCode
@@ -130,7 +130,7 @@ def ofNatOCode : ℕ → OCode
     | true, true => rfind' (ofNatOCode m)
 
 set_option backward.privateInPublic true in
-/-- Proof that `Nat.Partrec.Code.ofNatOCode` is the inverse of `Nat.Partrec.Code.encodeOCode` -/
+/-- Proof that `Nat.Partrec.OCode.ofNatOCode` is the inverse of `Nat.Partrec.OCode.encodeOCode` -/
 private theorem encode_ofNatOCode : ∀ n, encodeOCode (ofNatOCode n) = n
   | 0 => by simp [ofNatOCode, encodeOCode]
   | 1 => by simp [ofNatOCode, encodeOCode]
