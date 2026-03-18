@@ -458,9 +458,9 @@ def eval (c : OCode) (o : ℕ →. ℕ) : ℕ →. ℕ := match c with
   | comp cf cg => fun n => eval cg o n >>= eval cf o
   | prec cf cg =>
     Nat.unpaired fun a n =>
-      n.rec (eval cf o a) fun y IH => do
+      n.rec (eval cf o a) fun k IH => do
         let i ← IH
-        eval cg o (Nat.pair a (Nat.pair y i))
+        eval cg o (Nat.pair a (Nat.pair k i))
   | rfind' cf =>
     Nat.unpaired fun a m =>
       (Nat.rfind fun n => (fun m => m = 0) <$> eval cf o (Nat.pair a (n + m))).map (· + m)
@@ -557,7 +557,7 @@ theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : OCode
 
 /-- A modified evaluation for an `OCode` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course of its execution. Moreover, the provided oracle must be a function `ℕ → Option ℕ` rather than a function `ℕ →. ℕ`. Other than this, the semantics are the same as in `Nat.Partrec.OCode.eval`.
 
-TODO: Is using `ℕ → Option ℕ` as the oracle what we want here? Maybe we want to use `List ℕ` and `.get` instead. Then "`evaln k` is primitive recursive" makes sense.
+TODO: Is using `ℕ → Option ℕ` as the oracle what we want here? Maybe we want to use `List ℕ` and `.get` instead. Then "`evaln` is primitive recursive" makes sense.
 -/
 def evaln : ℕ → OCode → (ℕ → Option ℕ) → ℕ → Option ℕ
   | 0, _ => fun _ _ => Option.none
