@@ -141,11 +141,7 @@ def ofNatOCode : ℕ → OCode
   | 4 => oracle
   | n + 5 =>
     let m := n.div2.div2
-    have hm : m < n + 5 := by
-      simp only [m, div2_val]
-      exact
-        lt_of_le_of_lt (le_trans (Nat.div_le_self _ _) (Nat.div_le_self _ _))
-          (Nat.succ_le_succ (Nat.le_add_right _ _))
+    have hm : m < n + 5 := by grind
     have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
     have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
     match n.bodd, n.div2.bodd with
@@ -164,18 +160,14 @@ private theorem encode_ofNatOCode : ∀ n, encodeOCode (ofNatOCode n) = n
   | 4 => by simp [ofNatOCode, encodeOCode]
   | n + 5 => by
     let m := n.div2.div2
-    have hm : m < n + 5 := by
-      simp only [m, div2_val]
-      exact
-        lt_of_le_of_lt (le_trans (Nat.div_le_self _ _) (Nat.div_le_self _ _))
-          (Nat.succ_le_succ (Nat.le_add_right _ _))
+    have hm : m < n + 5 := by grind
     have _m1 : m.unpair.1 < n + 5 := lt_of_le_of_lt m.unpair_left_le hm
     have _m2 : m.unpair.2 < n + 5 := lt_of_le_of_lt m.unpair_right_le hm
     have IH := encode_ofNatOCode m
     have IH1 := encode_ofNatOCode m.unpair.1
     have IH2 := encode_ofNatOCode m.unpair.2
     conv_rhs => rw [← Nat.bit_bodd_div2 n, ← Nat.bit_bodd_div2 n.div2]
-    simp only [ofNatOCode.eq_6]
+    simp only [ofNatOCode]
     cases n.bodd <;> cases n.div2.bodd <;>
       simp [m, encodeOCode, IH, IH1, IH2, Nat.bit_val]
 
