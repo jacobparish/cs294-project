@@ -98,7 +98,8 @@ def ofCode : Code → OCode
 
 /-- The conversion from `Code` to `OCode` is injective. -/
 theorem ofCode_inj : Function.Injective ofCode := by
-  sorry
+  intro a b
+  induction a generalizing b with cases b <;> grind [ofCode]
 
 instance instInhabited : Inhabited OCode :=
   ⟨zero⟩
@@ -107,8 +108,8 @@ instance instInhabited : Inhabited OCode :=
 protected def const (n : ℕ) : OCode := ofCode (Code.const n)
 
 /-- `OCode.const` is injective. -/
-theorem const_inj : Function.Injective OCode.const := by
-  sorry
+theorem const_inj : Function.Injective OCode.const :=
+  ofCode_inj.comp @Code.const_inj
 
 /-- An `OCode` for the identity function. -/
 protected def id : OCode := ofCode Code.id
