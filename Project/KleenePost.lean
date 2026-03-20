@@ -77,12 +77,10 @@ Notes:
 -/
 def seq : ℕ → List ℕ × List ℕ
   | 0 => ([0], [0])
-  | n + 1 => Prod.map (. ++ [0]) (. ++ [0]) <|
-    Prod.swap <|
-    extend (Denumerable.ofNat Code n) <|
-    Prod.swap <|
-    extend (Denumerable.ofNat Code n) <|
-    seq n
+  | n + 1 =>
+    let c := Denumerable.ofNat Code n;
+    Prod.map (. ++ [0]) (. ++ [0]) <|
+    Prod.swap <| extend c <| Prod.swap <| extend c <| seq n
 
 def seq1 : ℕ → List ℕ := fun n => (seq n).1
 
@@ -119,7 +117,24 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
   let f := List.limit seq1 lt_length_seq1
   let g := List.limit seq2 lt_length_seq2
   use ⟦f⟧, ⟦g⟧
-  sorry
+  change ¬TuringReducible f g ∧ ¬TuringReducible g f
+  constructor <;> rw [Code.exists_code] <;> intro ⟨c, hc⟩
+  · let n := Encodable.encode c
+    -- `p` is what gets fed into `extend c` to ensure `g` does not compute `f`.
+    let p := Prod.swap (extend c (seq n))
+    have hf : (fun n => (c.eval g n).get (by simp [hc])) = f := by simp [hc]
+    have hp1 : (extend c p).1.IsPrefixOfFun g := by sorry
+    have hp2 : (extend c p).2.IsPrefixOfFun f := by sorry
+    rw [← hf] at hp2
+    exact extend_spec c p g hp1 (by simp [hc]) hp2
+  · let n := Encodable.encode c
+    -- `p` is what gets fed into `extend c` to ensure `f` does not compute `g`.
+    let p := seq n
+    have hg : (fun n => (c.eval f n).get (by simp [hc])) = g := by simp [hc]
+    have hp1 : (extend c p).1.IsPrefixOfFun f := by sorry
+    have hp2 : (extend c p).2.IsPrefixOfFun g := by sorry
+    rw [← hg] at hp2
+    exact extend_spec c p f hp1 (by simp [hc]) hp2
 
 end
 
