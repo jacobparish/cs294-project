@@ -13,7 +13,7 @@ def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α
   fun n => (s n).get ⟨n, hs n⟩
 
 /--
-A list `l` is a prefix of a function `ℕ → α` if for every `n < l.length`, `l[n] = s n`.
+A list `l` is a prefix of a function `f : ℕ → α` if for every `n < l.length`, `l[n] = f n`.
 -/
 def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
   ∀ (n : ℕ) (hn : n < l.length), l.get ⟨n, hn⟩ = f n
@@ -62,11 +62,11 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
   sorry
 
 /--
-The key property of `extend n p`.
-
-TODO: This should formally express the property described by `extend`.
+The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `c.eval f` is total, then `c.eval f` does not extend `t'`.
 -/
-theorem extend_spec (c : Code) (p : List ℕ × List ℕ) : 0 = 1 := by
+theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f : ℕ → ℕ)
+  (h_prefix : (extend c p).1.IsPrefixOfFun f) (hf_total : ∀ n, (c.eval f n).Dom)
+  : (¬(extend c p).2.IsPrefixOfFun fun n => (c.eval f n).get (hf_total n)) := by
   sorry
 
 /--
@@ -113,7 +113,7 @@ lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
   sorry
 
 /--
-The Kleene-Post Theorem: there exist two incomparable Turing degrees.
+The **Kleene-Post Theorem**: there exist two incomparable Turing degrees.
 -/
 theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) ∧ ¬(b ≤ a) := by
   let f := List.limit seq1 lt_length_seq1
