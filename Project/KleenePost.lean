@@ -3,6 +3,32 @@ module
 public import Project.OracleCode
 
 
+
+namespace List
+
+/--
+Given a sequence of lists `s : ℕ → List α` such that `n < (s n).length` for every `n`, we can define their limit: `limit s hs n` is defined to be `(s n)[n]`.
+
+TODO: does something like this already exist in mathlib?
+-/
+def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
+  fun n => (s n).get ⟨n, hs n⟩
+
+/--
+A list `l` is a prefix of a function `ℕ → α` if for every `n < l.length`, `l[n] = s n`.
+-/
+def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
+  ∀ (n : ℕ) (hn : n < l.length), l.get ⟨n, hn⟩ = f n
+
+/--
+If `s` is monotone in the sense that `s n` is a prefix of `s (n+1)` for all `n`, then each `s n` is a prefix of `limit s`.
+-/
+lemma isPrefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) (hs_mono : ∀ n, s n <+: s (n+1)) : ∀ n, IsPrefixOfFun (s n) (limit s hs) := by
+  sorry
+
+end List
+
+
 namespace TuringDegree
 
 open RecursiveIn
@@ -81,23 +107,12 @@ lemma lt_length_seq1 (n : ℕ) : n < (seq1 n).length := by
 lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
   sorry
 
-
-/--
-Given a sequence of lists `s : ℕ → List α` such that `n < (s n).length` for every `n`, we can define their limit: `limit s hs n` is defined to be `(s n)[n]`.
-
-TODO: does a construction like this already exist in mathlib?
-
-TODO: prove that if `s` is monotone in the sense that `s n` is a prefix of `s (n+1)`, then `limit s` is "well-defined" in the sense that `limit s n = (s i)[n]`, whenever the right side is defined.
--/
-def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
-  fun n => (s n).get ⟨n, hs n⟩
-
 /--
 The Kleene-Post Theorem: there exist two incomparable Turing degrees.
 -/
 theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) ∧ ¬(b ≤ a) := by
-  let f := limit seq1 lt_length_seq1
-  let g := limit seq2 lt_length_seq2
+  let f := List.limit seq1 lt_length_seq1
+  let g := List.limit seq2 lt_length_seq2
   use ⟦f⟧, ⟦g⟧
   sorry
 
