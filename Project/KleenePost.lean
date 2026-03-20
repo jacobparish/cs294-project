@@ -2,8 +2,6 @@ module
 
 public import Project.OracleCode
 
-
-
 namespace List
 
 /--
@@ -35,14 +33,21 @@ open RecursiveIn
 
 noncomputable section
 
+open Classical in
 /--
 Given a `RecursiveIn.Code` `c` and a pair of lists `(s, t)`, output `(s', t')` such that for all `f` extending `s'`, `c.eval f` is not a function extending `t'`.
 -/
 def extend (c : Code) : List ℕ × List ℕ → List ℕ × List ℕ :=
   fun (s, t) =>
-  -- Case 1: there is some s' ⊇ s such that Φ_n^{s'}(|t|) = m. Then return (s', t ++ [m+1]).
-  -- Case 2: there is no s' ⊇ s such that Φ_n^{s'}(|t|) halts. Then return (s, t).
-  sorry
+  let m := t.length;
+  if h : ∃ s', s <+: s' ∧ m ∈ (c.eval fun n => s'[n]?).Dom then
+    -- Case 1: there is some `s' ⊇ s` such that `c.eval s' m` halts and outputs `k`. Then return `(s', t ++ [k+1])`.
+    let s' := h.choose;
+    let k := (c.eval (fun n => s'[n]?) m).get h.choose_spec.2;
+    (s', t ++ [k+1])
+  else
+    -- Case 2: there is no `s' ⊇ s` such that `c.eval s' m` halts. Then return `(s, t)`.
+    (s, t)
 
 /--
 `extend` is increasing in the first argument.
