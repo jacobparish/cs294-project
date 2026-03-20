@@ -96,7 +96,7 @@ def ofPartrecCode : Nat.Partrec.Code → Code
   | .prec cf cg => prec (ofPartrecCode cf) (ofPartrecCode cg)
   | .rfind' cf => rfind' (ofPartrecCode cf)
 
-/-- The conversion from `Code` to `Code` is injective. -/
+/-- The conversion from `Nat.Partrec.Code` to `RecursiveIn.Code` is injective. -/
 theorem ofPartrecCode_inj : Function.Injective ofPartrecCode := by
   intro a b
   induction a generalizing b with cases b <;> grind [ofPartrecCode]
