@@ -12,21 +12,21 @@ It defines `RecursiveIn.Code`, an inductive datatype describing codes for partia
 
 Note that although `RecursiveIn` takes a set of oracles, `RecursiveIn.Code` allows just a single oracle. Another option would have been to allow a family of oracles indexed by a `Primcodable` type (i.e., we would define a structure `RecursiveIn.Code (α : Type*) [Primcodable α]`). But (1) such a family can be computably encoded as a single oracle anyway, and (2) the need to consider indexed families of oracles seems rare enough that it was not worth the extra complication.
 
-It also defines the evaluation of an `Code` as a partial function, and proves that a function `f` is Turing reducible to `g` if and only if it is the evaluation of some `RecursiveIn.Code` using `g` as an oracle.
+It also defines the evaluation of a `Code` as a partial function, and proves that a function `f` is Turing reducible to `g` if and only if it is the evaluation of some `RecursiveIn.Code` using `g` as an oracle.
 
 ## Main Definitions
 
 * `RecursiveIn.Code`: Inductive datatype for partial recursive functions with an oracle.
-* `RecursiveIn.Code.encodeCode`: A (computable) encoding of an `Code` as a natural number.
+* `RecursiveIn.Code.encodeCode`: A (computable) encoding of a `Code` as a natural number.
 * `RecursiveIn.Code.ofNatCode`: The inverse of this encoding.
-* `RecursiveIn.Code.eval`: The interpretation of an `Code` as a partial function.
+* `RecursiveIn.Code.eval`: The interpretation of a `Code` as a partial function.
 
 ## Main Results
 
 * `RecursiveIn.Code.primrec_recOn`: Recursion on `RecursiveIn.Code` is primitive recursive.
 * `RecursiveIn.Code.computable_recOn`: Recursion on `RecursiveIn.Code` is computable.
 * `RecursiveIn.Code.smn`: The $S_n^m$ theorem.
-* `RecursiveIn.Code.exists_code`: Being Turing reducible to `g` is equivalent to being the eval of an `Code` with oracle `g`.
+* `RecursiveIn.Code.exists_code`: Being Turing reducible to `g` is equivalent to being the eval of a `Code` with oracle `g`.
 * `RecursiveIn.Code.primrec_evaln`: `evaln` is primitive recursive.
 * `RecursiveIn.Code.fixed_point`: Roger's fixed point theorem.
 * `RecursiveIn.Code.fixed_point₂`: Kleene's second recursion theorem.
@@ -104,14 +104,14 @@ theorem ofPartrecCode_inj : Function.Injective ofPartrecCode := by
 instance instInhabited : Inhabited Code :=
   ⟨zero⟩
 
-/-- An `Code` for the constant function outputting `n`. -/
+/-- a `Code` for the constant function outputting `n`. -/
 protected def const (n : ℕ) : Code := ofPartrecCode (Nat.Partrec.Code.const n)
 
 /-- `Code.const` is injective. -/
 theorem const_inj : Function.Injective Code.const :=
   ofPartrecCode_inj.comp @Nat.Partrec.Code.const_inj
 
-/-- An `Code` for the identity function. -/
+/-- a `Code` for the identity function. -/
 protected def id : Code := ofPartrecCode Nat.Partrec.Code.id
 
 /-- Given a code `c` taking a pair as input, returns a code using `n` as the first argument to `c`.
@@ -539,7 +539,7 @@ theorem smn :
     ∃ f : Code → ℕ → Code, Computable₂ f ∧ ∀ c o n x, eval (f c n) o x = eval c o (Nat.pair n x) :=
   ⟨curry, Primrec₂.to_comp primrec₂_curry, eval_curry⟩
 
-/-- A function `f` is Turing reducible to `g` if and only if there is an `Code` which evaluates to `f`, given oracle `g`. -/
+/-- A function `f` is Turing reducible to `g` if and only if there is a `Code` which evaluates to `f`, given oracle `g`. -/
 theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code, eval c g = f := by
   refine ⟨fun h => ?_, ?_⟩
   · induction h with
@@ -573,7 +573,7 @@ theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code,
     | prec cf cg pf pg => exact pf.prec pg
     | rfind' cf pf => exact pf.rfind'
 
-/-- A modified evaluation for an `Code` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course of its execution. Moreover, the provided oracle must be a function `ℕ → Option ℕ` rather than a function `ℕ →. ℕ`. Other than this, the semantics are the same as in `RecursiveIn.Code.eval`.
+/-- A modified evaluation for a `Code` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course of its execution. Moreover, the provided oracle must be a function `ℕ → Option ℕ` rather than a function `ℕ →. ℕ`. Other than this, the semantics are the same as in `RecursiveIn.Code.eval`.
 
 TODO: Is using `ℕ → Option ℕ` as the oracle what we want here? Maybe we want to use `List ℕ` and `.get` instead. Then "`evaln` is primitive recursive" makes sense.
 -/
