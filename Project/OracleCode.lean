@@ -8,11 +8,11 @@ public import Mathlib.Computability.TuringDegree
 
 This file is a "relativized" version of `Mathlib/Computability/PartrecCode.lean`.
 
-It defines `Code`, an inductive datatype describing codes for partial recursive functions on ℕ with an oracle. It defines an encoding for these codes, and proves that the constructors are primitive recursive with respect to the encoding.
+It defines `RecursiveIn.Code`, an inductive datatype describing codes for partial recursive functions on ℕ with an oracle. It defines an encoding for these codes, and proves that the constructors are primitive recursive with respect to the encoding.
 
-Note that although `RecursiveIn` takes a set of oracles, `Code` allows just a single oracle. Another option would have been to allow a family of oracles indexed by a `Primcodable` type (i.e., we would define a structure `Code (α : Type*) [Primcodable α]`). But (1) such a family can be computably encoded as a single oracle anyway, and (2) the need to consider indexed families of oracles seems rare enough that it was not worth the extra complication.
+Note that although `RecursiveIn` takes a set of oracles, `RecursiveIn.Code` allows just a single oracle. Another option would have been to allow a family of oracles indexed by a `Primcodable` type (i.e., we would define a structure `RecursiveIn.Code (α : Type*) [Primcodable α]`). But (1) such a family can be computably encoded as a single oracle anyway, and (2) the need to consider indexed families of oracles seems rare enough that it was not worth the extra complication.
 
-It also defines the evaluation of an `Code` as a partial function, and proves that a function `f` is Turing reducible to `g` if and only if it is the evaluation of some `Code` using `g` as an oracle.
+It also defines the evaluation of an `Code` as a partial function, and proves that a function `f` is Turing reducible to `g` if and only if it is the evaluation of some `RecursiveIn.Code` using `g` as an oracle.
 
 ## Main Definitions
 
