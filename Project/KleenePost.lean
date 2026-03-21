@@ -19,9 +19,15 @@ def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
   ∀ (n : ℕ) (hn : n < l.length), l.get ⟨n, hn⟩ = f n
 
 /--
+If list `l` is a prefix of list `l'`, and `l'` is a prefix of function `f`, then `l` is also a prefix of `f`.
+-/
+lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f :=
+  sorry
+
+/--
 If `s` is monotone in the sense that `s n` is a prefix of `s (n+1)` for all `n`, then each `s n` is a prefix of `limit s`.
 -/
-lemma isPrefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) (hs_mono : ∀ n, s n <+: s (n+1)) : ∀ n, IsPrefixOfFun (s n) (limit s hs) := by
+lemma prefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) (hs_mono : ∀ n, s n <+: s (n+1)) : ∀ n, (s n).IsPrefixOfFun (limit s hs) := by
   sorry
 
 end List
@@ -87,13 +93,13 @@ def seq2 : ℕ → List ℕ := fun n => (seq n).2
 /--
 `seq1` is increasing.
 -/
-lemma prefix_seq1_succ {n : ℕ} : seq1 n <+: seq1 (n+1) := by
+lemma prefix_seq1_succ (n : ℕ) : seq1 n <+: seq1 (n+1) := by
   sorry
 
 /--
 `seq2` is increasing.
 -/
-lemma prefix_seq2_succ {n : ℕ} : seq2 n <+: seq2 (n+1) := by
+lemma prefix_seq2_succ (n : ℕ) : seq2 n <+: seq2 (n+1) := by
   sorry
 
 /--
@@ -120,14 +126,28 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
     let p := Prod.swap (extend c (seq n))
-    have hp1 : (extend c p).1.IsPrefixOfFun g := by sorry
-    have hp2 : (extend c p).2.IsPrefixOfFun f := by sorry
+    have hp1 : (extend c p).1.IsPrefixOfFun g :=
+      List.prefixOfFun_of_prefix_of_prefixOfFun
+        (by simp [seq2, seq, p, n])
+        (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
+    have hp2 : (extend c p).2.IsPrefixOfFun f :=
+      List.prefixOfFun_of_prefix_of_prefixOfFun
+        (by simp [seq1, seq, p, n])
+        (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
     exact extend_spec c p g f hp1 hp2 hc
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
-    have hp1 : (extend c p).1.IsPrefixOfFun f := by sorry
-    have hp2 : (extend c p).2.IsPrefixOfFun g := by sorry
+    have hp1 : (extend c p).1.IsPrefixOfFun f := by
+      refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
+        (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
+      simp [seq1, seq, p, n]
+      grind [prefix_extend_snd]
+    have hp2 : (extend c p).2.IsPrefixOfFun g := by
+      refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
+        (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
+      simp [seq2, seq, p, n]
+      grind [prefix_extend_fst]
     exact extend_spec c p f g hp1 hp2 hc
 
 end
