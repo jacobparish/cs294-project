@@ -65,8 +65,8 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
 The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `c.eval f` is total, then `c.eval f` does not extend `t'`.
 -/
 theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f : ℕ → ℕ)
-  (h_prefix : (extend c p).1.IsPrefixOfFun f) (hf_total : ∀ n, (c.eval f n).Dom)
-  : (¬(extend c p).2.IsPrefixOfFun fun n => (c.eval f n).get (hf_total n)) := by
+    (h_prefix : (extend c p).1.IsPrefixOfFun f) (h_total : ∀ n, (c.eval f n).Dom)
+    : (¬(extend c p).2.IsPrefixOfFun fun n => (c.eval f n).get (h_total n)) := by
   sorry
 
 /--
