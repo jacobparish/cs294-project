@@ -252,7 +252,6 @@ theorem primrec_rfind' : Primrec rfind' :=
           encode_iff.2 <| Primrec.ofNat Code)
         (const 5)
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
 theorem primrec_recOn' {α σ}
     [Primcodable α] [Primcodable σ] {c : α → Code} (hc : Primrec c) {z : α → σ}
     (hz : Primrec z) {s : α → σ} (hs : Primrec s) {l : α → σ} (hl : Primrec l) {r : α → σ}
@@ -364,7 +363,6 @@ section
 
 open Nat Computable
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
 /-- Recursion on `RecursiveIn.Code` is computable. -/
 theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → Code} (hc : Computable c)
     {z : α → σ} (hz : Computable z) {s : α → σ} (hs : Computable s) {l : α → σ} (hl : Computable l)
@@ -573,63 +571,59 @@ theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code,
     | prec cf cg pf pg => exact pf.prec pg
     | rfind' cf pf => exact pf.rfind'
 
-/-- A modified evaluation for a `Code` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number ≥ k in the course of its execution. Moreover, the provided oracle must be a function `ℕ → Option ℕ` rather than a function `ℕ →. ℕ`. Other than this, the semantics are the same as in `RecursiveIn.Code.eval`.
-
-TODO: Is using `ℕ → Option ℕ` as the oracle what we want here? Maybe we want to use `List ℕ` and `.get` instead. Then "`evaln` is primitive recursive" makes sense.
+open Classical in
+/--
+A modified evaluation for a `Code` which returns an `Option ℕ` instead of a `Part ℕ`. To avoid undecidability, `evaln` takes a parameter `k` and fails if it encounters a number `≥ k` in the course of its execution. Other than this, the semantics are the same as in `RecursiveIn.Code.eval`. The goal is that this function be primitive recursive relative to the oracle `o`.
 -/
-def evaln : ℕ → Code → (ℕ → Option ℕ) → ℕ → Option ℕ
-  | 0, _ => fun _ _ => Option.none
-  | k + 1, zero => fun _ n => do
+noncomputable def evaln (o : ℕ →. ℕ) : ℕ → Code → ℕ → Option ℕ
+  | 0, _ => fun _ => Option.none
+  | k + 1, zero => fun n => do
     guard (n ≤ k)
     return 0
-  | k + 1, succ => fun _ n => do
+  | k + 1, succ => fun n => do
     guard (n ≤ k)
     return (Nat.succ n)
-  | k + 1, left => fun _ n => do
+  | k + 1, left => fun n => do
     guard (n ≤ k)
     return n.unpair.1
-  | k + 1, right => fun _ n => do
+  | k + 1, right => fun n => do
     guard (n ≤ k)
     pure n.unpair.2
-  | k + 1, oracle => fun o n => do
+  | k + 1, oracle => fun n => do
     guard (n ≤ k)
-    o n
-  | k + 1, pair cf cg => fun o n => do
+    (o n).toOption
+  | k + 1, pair cf cg => fun n => do
     guard (n ≤ k)
-    Nat.pair <$> evaln (k + 1) cf o n <*> evaln (k + 1) cg o n
-  | k + 1, comp cf cg => fun o n => do
+    Nat.pair <$> evaln o (k + 1) cf n <*> evaln o (k + 1) cg n
+  | k + 1, comp cf cg => fun n => do
     guard (n ≤ k)
-    let x ← evaln (k + 1) cg o n
-    evaln (k + 1) cf o x
-  | k + 1, prec cf cg => fun o n => do
+    let x ← evaln o (k + 1) cg n
+    evaln o (k + 1) cf x
+  | k + 1, prec cf cg => fun n => do
     guard (n ≤ k)
     n.unpaired fun a n =>
-      n.casesOn (evaln (k + 1) cf o a) fun y => do
-        let i ← evaln k (prec cf cg) o (Nat.pair a y)
-        evaln (k + 1) cg o (Nat.pair a (Nat.pair y i))
-  | k + 1, rfind' cf => fun o n => do
+      n.casesOn (evaln o (k + 1) cf a) fun y => do
+        let i ← evaln o k (prec cf cg) (Nat.pair a y)
+        evaln o (k + 1) cg (Nat.pair a (Nat.pair y i))
+  | k + 1, rfind' cf => fun n => do
     guard (n ≤ k)
     n.unpaired fun a m => do
-      let x ← evaln (k + 1) cf o (Nat.pair a m)
+      let x ← evaln o (k + 1) cf (Nat.pair a m)
       if x = 0 then
         pure m
       else
-        evaln k (rfind' cf) o (Nat.pair a (m + 1))
+        evaln o k (rfind' cf) (Nat.pair a (m + 1))
 
-theorem evaln_bound : ∀ {k c g n x}, x ∈ evaln k c g n → n < k
-  | 0, c, g, n, x, h => by simp [evaln] at h
-  | k + 1, c, g, n, x, h => by
+theorem evaln_bound {g : ℕ →. ℕ} : ∀ {k c n x}, x ∈ evaln g k c n → n < k
+  | 0, c, n, x, h => by simp [evaln] at h
+  | k + 1, c, n, x, h => by
     suffices ∀ {o : Option ℕ}, x ∈ do { guard (n ≤ k); o } → n < k + 1 by
       cases c <;> rw [evaln] at h <;> exact this h
     simpa [Option.bind_eq_some_iff] using Nat.lt_succ_of_le
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
-theorem evaln_mono : ∀ {k₁ k₂ c g n x}, k₁ ≤ k₂ → x ∈ evaln k₁ c g n → x ∈ evaln k₂ c g n
-  | 0, k₂, c, g, n, x, _, h => by simp [evaln] at h
-  | k + 1, k₂ + 1, c, g, n, x, hl, h => by
-    sorry
-    -- TODO: update this proof for RecursiveIn.Code.
-/-
+theorem evaln_mono {g : ℕ →. ℕ} : ∀ {k₁ k₂ c n x}, k₁ ≤ k₂ → x ∈ evaln g k₁ c n → x ∈ evaln g k₂ c n
+  | 0, k₂, c, n, x, _, h => by simp [evaln] at h
+  | k + 1, k₂ + 1, c, n, x, hl, h => by
     have hl' := Nat.le_of_succ_le_succ hl
     have :
       ∀ {k k₂ n x : ℕ} {o₁ o₂ : Option ℕ},
@@ -641,7 +635,7 @@ theorem evaln_mono : ∀ {k₁ k₂ c g n x}, k₁ ≤ k₂ → x ∈ evaln k₁
       exact ⟨le_trans h₂ h, h₁ h₃⟩
     simp? at h ⊢ says simp only [Option.mem_def] at h ⊢
     induction c generalizing x n <;> rw [evaln] at h ⊢ <;> refine this hl' (fun h => ?_) h
-    iterate 4 exact h
+    iterate 5 exact h
     case pair cf cg hf hg _ =>
       simp? [Seq.seq, Option.bind_eq_some_iff] at h ⊢ says
         simp only [Seq.seq, Option.map_eq_map, Option.mem_def, Option.bind_eq_some_iff,
@@ -653,28 +647,24 @@ theorem evaln_mono : ∀ {k₁ k₂ c g n x}, k₁ ≤ k₂ → x ∈ evaln k₁
       exact h.imp fun a => And.imp (hg _ _) (hf _ _)
     case prec cf cg hf hg _ =>
       revert h
-      simp only [unpaired, bind, Option.mem_def]
+      simp only [Nat.unpaired, bind, Option.mem_def]
       induction n.unpair.2 <;> simp [Option.bind_eq_some_iff]
       · apply hf
       · exact fun y h₁ h₂ => ⟨y, evaln_mono hl' h₁, hg _ _ h₂⟩
     case rfind' cf hf _ =>
       simp? [Bind.bind, Option.bind_eq_some_iff] at h ⊢ says
-        simp only [unpaired, bind, pair_unpair, Option.pure_def, Option.mem_def,
+        simp only [Nat.unpaired, bind, Nat.pair_unpair, Option.pure_def, Option.mem_def,
           Option.bind_eq_some_iff] at h ⊢
       refine h.imp fun x => And.imp (hf _ _) ?_
       by_cases x0 : x = 0 <;> simp [x0]
       exact evaln_mono hl'
--/
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
--- TODO: Figure out the correct statement of this theorem.
-/-
-theorem evaln_sound : ∀ {k c g n x}, x ∈ evaln k c g n → x ∈ eval c g n
-  | 0, _, g, n, x, h => by simp [evaln] at h
-  | k + 1, c, g, n, x, h => by
+theorem evaln_sound {g : ℕ →. ℕ} : ∀ {k c n x}, x ∈ evaln g k c n → x ∈ eval c g n
+  | 0, _, n, x, h => by simp [evaln] at h
+  | k + 1, c, n, x, h => by
     induction c generalizing x n <;> simp [eval, evaln, Option.bind_eq_some_iff, Seq.seq] at h ⊢ <;>
       obtain ⟨_, h⟩ := h
-    iterate 4 simpa [pure, PFun.pure, eq_comm] using h
+    iterate 5 simpa [pure, PFun.pure, eq_comm] using h
     case pair cf cg hf hg _ =>
       rcases h with ⟨y, ef, z, eg, rfl⟩
       exact ⟨_, hf _ _ ef, _, hg _ _ eg, rfl⟩
@@ -706,17 +696,14 @@ theorem evaln_sound : ∀ {k c g n x}, x ∈ evaln k c g n → x ∈ eval c g n
         · exact ⟨m, by simpa using hf _ _ h₁, m0⟩
         · rcases hy₂ (Nat.lt_of_succ_lt_succ im) with ⟨z, hz, z0⟩
           exact ⟨z, by simpa [add_comm, add_left_comm] using hz, z0⟩
--/
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
--- TODO: Figure out the correct statement of this theorem.
-/-
-theorem evaln_complete {c g n x} : x ∈ eval c g n ↔ ∃ k, x ∈ evaln k c g n := by
+theorem evaln_complete {g : ℕ →. ℕ} {c n x} : x ∈ eval c g n ↔ ∃ k, x ∈ evaln g k c n := by
   refine ⟨fun h => ?_, fun ⟨k, h⟩ => evaln_sound h⟩
-  rsuffices ⟨k, h⟩ : ∃ k, x ∈ evaln (k + 1) c n
+  rsuffices ⟨k, h⟩ : ∃ k, x ∈ evaln g (k + 1) c n
   · exact ⟨k + 1, h⟩
   induction c generalizing n x with
       simp [eval, evaln, pure, PFun.pure, Seq.seq, Option.bind_eq_some_iff] at h ⊢
+  | oracle => exact ⟨⟨_, le_rfl⟩, h⟩
   | pair cf cg hf hg =>
     rcases h with ⟨x, hx, y, hy, rfl⟩
     rcases hf hx with ⟨k₁, hk₁⟩; rcases hg hy with ⟨k₂, hk₂⟩
@@ -751,12 +738,12 @@ theorem evaln_complete {c g n x} : x ∈ eval c g n ↔ ∃ k, x ∈ evaln k c g
             le_trans (le_max_left _ (Nat.pair n₁ m)) nk₁, y,
           evaln_mono (Nat.succ_le_succ <| le_max_left _ _) ?_,
           evaln_mono (Nat.succ_le_succ <| Nat.le_succ_of_le <| le_max_right _ _) hk₂⟩
-      simp only [evaln.eq_8, bind, unpaired, unpair_pair, Option.mem_def, Option.bind_eq_some_iff,
+      simp only [evaln.eq_9, bind, Nat.unpaired, Nat.unpair_pair, Option.mem_def, Option.bind_eq_some_iff,
         Option.guard_eq_some', exists_and_left, exists_const]
       exact ⟨le_trans (le_max_right _ _) nk₁, hk₁⟩
   | rfind' cf hf =>
     rcases h with ⟨y, ⟨hy₁, hy₂⟩, rfl⟩
-    suffices ∃ k, y + n.unpair.2 ∈ evaln (k + 1) (rfind' cf) (Nat.pair n.unpair.1 n.unpair.2) by
+    suffices ∃ k, y + n.unpair.2 ∈ evaln g (k + 1) (rfind' cf) (Nat.pair n.unpair.1 n.unpair.2) by
       simpa [evaln, Option.bind_eq_some_iff]
     revert hy₁ hy₂
     generalize n.unpair.2 = m
@@ -782,7 +769,6 @@ theorem evaln_complete {c g n x} : x ∈ eval c g n ↔ ∃ k, x ∈ evaln k c g
       simpa [a0, add_comm, add_left_comm] using
         evaln_mono (Nat.succ_le_succ <| le_max_right _ _) hk₂
   | _ => exact ⟨⟨_, le_rfl⟩, h.symm⟩
--/
 
 section
 
@@ -1026,13 +1012,10 @@ section
 
 open Partrec Computable
 
--- TODO: do we need to update this?
-/-
-theorem eval_eq_rfindOpt (c n) : eval c n = Nat.rfindOpt fun k => evaln k c n :=
+theorem eval_eq_rfindOpt (c g n) : eval c g n = Nat.rfindOpt fun k => evaln g k c n :=
   Part.ext fun x => by
     refine evaln_complete.trans (Nat.rfindOpt_mono ?_).symm
     intro a m n hl; apply evaln_mono hl
--/
 
 -- TODO: do we need to update this?
 /-
