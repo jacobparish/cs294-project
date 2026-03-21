@@ -126,29 +126,25 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
     let p := Prod.swap (extend c (seq n))
-    have hp1 : (extend c p).1.IsPrefixOfFun g :=
-      List.prefixOfFun_of_prefix_of_prefixOfFun
+    refine extend_spec c p g f ?_ ?_ hc
+    · exact List.prefixOfFun_of_prefix_of_prefixOfFun
         (by simp [seq2, seq, p, n])
         (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
-    have hp2 : (extend c p).2.IsPrefixOfFun f :=
-      List.prefixOfFun_of_prefix_of_prefixOfFun
+    · exact List.prefixOfFun_of_prefix_of_prefixOfFun
         (by simp [seq1, seq, p, n])
         (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
-    exact extend_spec c p g f hp1 hp2 hc
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
-    have hp1 : (extend c p).1.IsPrefixOfFun f := by
-      refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
+    refine extend_spec c p f g ?_ ?_ hc
+    · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
         (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
       simp [seq1, seq, p, n]
       grind [prefix_extend_snd]
-    have hp2 : (extend c p).2.IsPrefixOfFun g := by
-      refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
+    · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
         (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
       simp [seq2, seq, p, n]
       grind [prefix_extend_fst]
-    exact extend_spec c p f g hp1 hp2 hc
 
 end
 
