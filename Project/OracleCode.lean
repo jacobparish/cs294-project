@@ -927,22 +927,18 @@ private theorem hG : Primrec G := by
       Primrec.fst
 -/
 
--- TODO: What is the right statement of this theorem?
-/-
-private theorem evaln_map (k c n) :
-    ((List.range k)[n]?.bind fun a ↦ evaln k c a) = evaln k c n := by
+private theorem evaln_map (g k c n) :
+    ((List.range k)[n]?.bind fun a ↦ evaln g k c a) = evaln g k c n := by
   by_cases kn : n < k
   · simp [List.getElem?_range kn]
   · rw [List.getElem?_eq_none]
-    · cases e : evaln k c n
+    · cases e : evaln g k c n
       · rfl
       exact kn.elim (evaln_bound e)
     simpa using kn
--/
 
-set_option linter.flexible false in -- TODO: revisit this after #13791 is merged
--- /-- The `Nat.Partrec.Code.evaln` function is primitive recursive. -/
--- TODO: What is the correct way to state this theorem?
+-- /-- The `RecursiveIn.Code.evaln` function is recursive in the oracle. -/
+-- TODO: To state this theorem, we need a notion like `RecursiveIn'` defined in https://github.com/leanprover-community/mathlib4/pull/34937
 /-
 theorem primrec_evaln : Primrec fun a : (ℕ × Code) × ℕ => evaln a.1.1 a.1.2 a.2 :=
   have :
@@ -1027,7 +1023,7 @@ theorem eval_part : Partrec₂ eval :=
 -/
 
 -- /-- **Roger's fixed-point theorem**: any total, computable `f` has a fixed point.
--- That is, under the interpretation given by `Nat.Partrec.Code.eval`, there is a code `c`
+-- That is, under the interpretation given by `RecursiveIn.Code.eval`, there is a code `c`
 -- such that `c` and `f c` have the same evaluation.
 -- -/
 -- TODO: What is the correct relativization of this theorem?
