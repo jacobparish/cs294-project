@@ -91,25 +91,25 @@ def seq1 : ℕ → List ℕ := fun n => (seq n).1
 def seq2 : ℕ → List ℕ := fun n => (seq n).2
 
 /--
-`seq1` is increasing.
+`seq1` is monotone.
 -/
-lemma prefix_seq1_succ (n : ℕ) : seq1 n <+: seq1 (n+1) := by
+lemma seq1_mono (n : ℕ) : seq1 n <+: seq1 (n+1) := by
   sorry
 
 /--
-`seq2` is increasing.
+`seq2` is monotone.
 -/
-lemma prefix_seq2_succ (n : ℕ) : seq2 n <+: seq2 (n+1) := by
+lemma seq2_mono (n : ℕ) : seq2 n <+: seq2 (n+1) := by
   sorry
 
 /--
-`seq1` is strictly increasing in length.
+For every `n`, `n < (seq1 n).length`. This is used to define the limit.
 -/
 lemma lt_length_seq1 (n : ℕ) : n < (seq1 n).length := by
   sorry
 
 /--
-`seq2` is strictly increasing in length.
+For every `n`, `n < (seq2 n).length`. This is used to define the limit.
 -/
 lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
   sorry
@@ -129,20 +129,20 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
     refine extend_spec c p g f ?_ ?_ hc
     · exact List.prefixOfFun_of_prefix_of_prefixOfFun
         (by simp [seq2, seq, p, n])
-        (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
+        (List.prefixOfFun_limit seq2 lt_length_seq2 seq2_mono (n+1))
     · exact List.prefixOfFun_of_prefix_of_prefixOfFun
         (by simp [seq1, seq, p, n])
-        (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
+        (List.prefixOfFun_limit seq1 lt_length_seq1 seq1_mono (n+1))
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
     refine extend_spec c p f g ?_ ?_ hc
     · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
-        (List.prefixOfFun_limit seq1 lt_length_seq1 prefix_seq1_succ (n+1))
+        (List.prefixOfFun_limit seq1 lt_length_seq1 seq1_mono (n+1))
       simp [seq1, seq, p, n]
       grind [prefix_extend_snd]
     · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
-        (List.prefixOfFun_limit seq2 lt_length_seq2 prefix_seq2_succ (n+1))
+        (List.prefixOfFun_limit seq2 lt_length_seq2 seq2_mono (n+1))
       simp [seq2, seq, p, n]
       grind [prefix_extend_fst]
 
