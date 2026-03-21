@@ -120,7 +120,7 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
   change ¬TuringReducible f g ∧ ¬TuringReducible g f
   constructor <;> rw [Code.exists_code] <;> intro ⟨c, hc⟩
   · let n := Encodable.encode c
-    -- `p` is what gets fed into `extend c` to ensure `g` does not compute `f`.
+    -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
     let p := Prod.swap (extend c (seq n))
     have hf : (fun n => (c.eval g n).get (by simp [hc])) = f := by simp [hc]
     have hp1 : (extend c p).1.IsPrefixOfFun g := by sorry
@@ -128,7 +128,7 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
     rw [← hf] at hp2
     exact extend_spec c p g hp1 (by simp [hc]) hp2
   · let n := Encodable.encode c
-    -- `p` is what gets fed into `extend c` to ensure `f` does not compute `g`.
+    -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
     have hg : (fun n => (c.eval f n).get (by simp [hc])) = g := by simp [hc]
     have hp1 : (extend c p).1.IsPrefixOfFun f := by sorry
