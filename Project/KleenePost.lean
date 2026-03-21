@@ -62,11 +62,9 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
   sorry
 
 /--
-The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `c.eval f` is total, then `c.eval f` does not extend `t'`.
+The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
-theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f : ℕ → ℕ)
-    (h_prefix : (extend c p).1.IsPrefixOfFun f) (h_total : ∀ n, (c.eval f n).Dom)
-    : (¬(extend c p).2.IsPrefixOfFun fun n => (c.eval f n).get (h_total n)) := by
+theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
   sorry
 
 /--
@@ -122,19 +120,15 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
     let p := Prod.swap (extend c (seq n))
-    have hf : (fun n => (c.eval g n).get (by simp [hc])) = f := by simp [hc]
     have hp1 : (extend c p).1.IsPrefixOfFun g := by sorry
     have hp2 : (extend c p).2.IsPrefixOfFun f := by sorry
-    rw [← hf] at hp2
-    exact extend_spec c p g hp1 (by simp [hc]) hp2
+    exact extend_spec c p g f hp1 hp2 hc
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
-    have hg : (fun n => (c.eval f n).get (by simp [hc])) = g := by simp [hc]
     have hp1 : (extend c p).1.IsPrefixOfFun f := by sorry
     have hp2 : (extend c p).2.IsPrefixOfFun g := by sorry
-    rw [← hg] at hp2
-    exact extend_spec c p f hp1 (by simp [hc]) hp2
+    exact extend_spec c p f g hp1 hp2 hc
 
 end
 
