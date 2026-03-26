@@ -40,16 +40,12 @@ lemma prefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length
   · have hprefix : s n <+: s m := hs_mono' hnm
     have h1 : (s m)[m]? = some ((s n)[m]'hm) := (List.prefix_iff_getElem?.mp hprefix) m hm
     have h2 : (s m)[m]? = some ((s m)[m]'(hs m)) := List.getElem?_eq_getElem (hs m)
-    have h : (s n).get ⟨m, hm⟩ = (s m).get ⟨m, hs m⟩ := by
-      exact Option.some.inj (h1.symm.trans h2)
-    simpa [limit, List.get_eq_getElem] using h
+    exact Option.some.inj (h1.symm.trans h2)
   · have hmn : m ≤ n := Nat.le_of_not_ge hnm
     have hprefix : s m <+: s n := hs_mono' hmn
     have h1 : (s n)[m]? = some ((s m)[m]'(hs m)) := (List.prefix_iff_getElem?.mp hprefix) m (hs m)
     have h2 : (s n)[m]? = some ((s n)[m]'hm) := List.getElem?_eq_getElem hm
-    have h : (s n).get ⟨m, hm⟩ = (s m).get ⟨m, hs m⟩ := by
-      exact Option.some.inj (h2.symm.trans h1)
-    simpa [limit, List.get_eq_getElem] using h
+    exact Option.some.inj (h2.symm.trans h1)
 
 end List
 
