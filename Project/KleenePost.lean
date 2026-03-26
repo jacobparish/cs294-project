@@ -58,7 +58,7 @@ noncomputable section
 
 open Classical in
 /--
-Given a `RecursiveIn.Code` `c` and a pair of lists `(s, t)`, output `(s', t')` such that for all `f` extending `s'`, `c.eval f` is not a function extending `t'`.
+Given a `RecursiveIn.Code` `c` and a pair of lists `(s, t)`, `extend c (s, t)` returns a pair `(s', t')` such that `s' ⊇ s`, `t' ⊇ t`, and for all `f` extending `s'`, `c.eval f` is not a function extending `t'`.
 -/
 def extend (c : Code) : List ℕ × List ℕ → List ℕ × List ℕ :=
   fun (s, t) =>
@@ -85,7 +85,7 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
   sorry
 
 /--
-The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
+The key property of `extend c p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
 theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
   sorry
