@@ -86,7 +86,6 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
 The key property of `extend c p`. Suppose `extend c p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
 theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
-  sorry
   let s := p.1; let t := p.2
   by_cases h : ∃ s', s <+: s' ∧ t.length ∈ (c.eval fun n => s'[n]?).Dom
   · -- Case 1: `c.eval f |t| = k`, while `g |t| = k + 1`.
