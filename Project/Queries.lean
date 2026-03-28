@@ -169,7 +169,6 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
 If `evalq c o n` halts, then the set of oracle queries made is contained in the domain of `o`.
 -/
 theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) : ↑((c.queries o n).get hn) ⊆ o.Dom := by
-  sorry
   induction c generalizing n with
   | zero | succ | left | right => simp
   | oracle =>
