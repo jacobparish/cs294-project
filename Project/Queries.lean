@@ -170,6 +170,37 @@ If `evalq c o n` halts, then the set of oracle queries made is contained in the 
 -/
 theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) : ↑((c.queries o n).get hn) ⊆ o.Dom := by
   sorry
+  induction c generalizing n with
+  | zero | succ | left | right => simp
+  | oracle =>
+    simp [queries, evalq, Part.bind, Part.assert, ← Part.dom_iff_mem] at hn ⊢
+    exact hn
+  | pair cf cg IHcf IHcg | comp cf cg IHcf IHcg =>
+    simp [queries, evalq, Part.bind, Part.assert] at hn ⊢
+    solve_by_elim
+  | prec cf cg IHcf IHcg =>
+    revert hn
+    suffices ∀ a m (ham : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom), ↑(((cf.prec cg).queries o (Nat.pair a m)).get ham) ⊆ o.Dom by
+      convert this n.unpair.1 n.unpair.2
+      simp
+    intro a m ham
+    induction m with
+    | zero =>
+      simp [queries, evalq] at ham ⊢
+      exact IHcf ham
+    | succ m IHm =>
+      simp [queries_prec_succ, Part.bind, Part.assert]
+      simp [evalq_prec_succ] at ham
+      obtain ⟨z, y, ⟨s, h1, h2⟩, ⟨t, h3⟩⟩ := ham
+      use IHm h1
+      grind
+  | rfind' cf IHcf =>
+    revert hn
+    suffices ∀ a m (ham : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom), ↑((cf.rfind'.queries o (Nat.pair a m)).get ham) ⊆ o.Dom by
+      convert this n.unpair.1 n.unpair.2
+      simp
+    intro a m ham
+    sorry
 
 /--
 The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `evalq c o n = evalq c o' n`.
