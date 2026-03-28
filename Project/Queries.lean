@@ -206,7 +206,6 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
 The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `evalq c o n = evalq c o' n`.
 -/
 theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (ho : n ∈ (c.evalq o).Dom) {o' : ℕ →. ℕ} (ho' : ∀ i ∈ (c.queries o n).get ho, o i = o' i) : c.evalq o n = c.evalq o' n := by
-  sorry
   induction c generalizing n with
   | zero | succ | left | right => simp [evalq]
   | oracle => simp_all [evalq, queries, Part.bind_some_eq_map]
