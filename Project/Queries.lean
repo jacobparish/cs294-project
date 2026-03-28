@@ -207,5 +207,22 @@ The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`
 -/
 theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (ho : n ∈ (c.evalq o).Dom) {o' : ℕ →. ℕ} (ho' : ∀ i ∈ (c.queries o n).get ho, o i = o' i) : c.evalq o n = c.evalq o' n := by
   sorry
+  induction c generalizing n with
+  | zero | succ | left | right => simp [evalq]
+  | oracle => simp_all [evalq, queries, Part.bind_some_eq_map]
+  | pair cf cg IHcf IHcg =>
+    simp [evalq] at ho ⊢
+    simp [queries, evalq, Part.bind, Part.assert] at ho'
+    rw [IHcf ho.1 (fun i hi => ho' i (.inl hi)), IHcg ho.2 (fun i hi => ho' i (.inr hi))]
+  | comp cf cg IHcf IHcg =>
+    simp [evalq] at ho ⊢
+    simp [queries, evalq, Part.bind, Part.assert] at ho'
+    rw [← IHcg ho.1 (fun i hi => ho' i (.inl hi))]
+    simp [Part.bind, Part.assert_pos ho.1]
+    rw [← IHcf ho.2 (fun i hi => ho' i (.inr hi))]
+  | prec cf cg IHcf IHcg =>
+    sorry
+  | rfind' cf IHcf =>
+    sorry
 
 end RecursiveIn.Code
