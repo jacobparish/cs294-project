@@ -211,6 +211,7 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
   | pair cf cg IHcf IHcg =>
     simp [evalq] at hn ⊢
     simp [queries, evalq, Part.bind, Part.assert] at ho'
+    rw [IHcf hn.1 (fun i hi => ho' i (.inl hi)), IHcg hn.2 (fun i hi => ho' i (.inr hi))]
   | comp cf cg IHcf IHcg =>
     simp [evalq] at hn ⊢
     simp [queries, evalq, Part.bind, Part.assert] at ho'
