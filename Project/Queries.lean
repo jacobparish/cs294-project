@@ -166,13 +166,13 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
       simp
 
 /--
-If `c.evalq o n` halts, then the set of oracle queries made is contained in the domain of `o`.
+If `evalq c o n` halts, then the set of oracle queries made is contained in the domain of `o`.
 -/
 theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) : ↑((c.queries o n).get hn) ⊆ o.Dom := by
   sorry
 
 /--
-The main theorem about `evalq`: if `c.evalq o n = some (m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `c.evalq o n = c.evalq o' n`.
+The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `evalq c o n = evalq c o' n`.
 -/
 theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (ho : n ∈ (c.evalq o).Dom) {o' : ℕ →. ℕ} (ho' : ∀ i ∈ (c.queries o n).get ho, o i = o' i) : c.evalq o n = c.evalq o' n := by
   sorry
