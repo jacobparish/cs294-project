@@ -98,9 +98,78 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
   · exact List.prefix_append t [((c.eval fun n => h.choose[n]?) t.length).get h.choose_spec.2 + 1]
   · simp
 
+
+/--
+If `c.eval` halts at `n` with the finite oracle `s`, then evaluating with a total extension `f`
+returns the same value.
+-/
+lemma oracle_use_forward (c : Code) (s : List ℕ) (f : ℕ → ℕ) (n : ℕ)
+    (hsf : s.IsPrefixOfFun f) :
+    ∀ hdom : n ∈ (c.eval fun i => s[i]?).Dom,
+      c.eval f n = Part.some ((c.eval (fun i => s[i]?) n).get hdom) := by
+  induction c generalizing n with
+  | zero =>
+    intro hdom
+    simp [RecursiveIn.Code.eval]
+  | succ =>
+    intro hdom
+    simp [RecursiveIn.Code.eval]
+  | left =>
+    intro hdom
+    simp [RecursiveIn.Code.eval]
+  | right =>
+    intro hdom
+    simp [RecursiveIn.Code.eval]
+  | oracle =>
+    intro hdom
+    simp [RecursiveIn.Code.eval] at hdom ⊢
+    rw [List.getElem?_eq_getElem hdom, ← hsf n hdom]
+    simp
+  | pair cf cg ihf ihg =>
+    intro hdom
+    sorry
+  | comp cf cg ihf ihg =>
+    intro hdom
+    sorry
+  | prec cf cg ihf ihg =>
+    intro hdom
+    sorry
+  | rfind' cf ihf =>
+    intro hdom
+    sorry
+
+
+/--
+If `c.eval f n` halts with a total oracle `f`, then some finite extension of `s` already witnesses
+halting at `n`.
+-/
+lemma oracle_use_backward (c : Code) (s : List ℕ) (f : ℕ → ℕ) (n : ℕ)
+    (hsf : s.IsPrefixOfFun f) :
+    n ∈ (c.eval f).Dom → ∃ s', s <+: s' ∧ n ∈ (c.eval fun i => s'[i]?).Dom := by
+  intro hdom_f
+  by_contra hno
+  push_neg at hno
+  have hs_self : s <+: s := List.prefix_rfl
+  have hnot_s : n ∉ (c.eval fun i => s[i]?).Dom := by
+    intro hdom_s
+    exact hno s hs_self hdom_s
+  -- Blocker: from `hdom_f` and `hsf`, we still need a finite-use/continuity argument for `c.eval`
+  -- to derive a contradiction with `hnot_s`.
+  sorry
+
+/--
+Helper lemma for switching between a finite oracle prefix and a total oracle extension.
+-/
+lemma oracle_use (c : Code) (s : List ℕ) (f : ℕ → ℕ) (n : ℕ) (hsf : s.IsPrefixOfFun f) :
+    (∀ hdom : n ∈ (c.eval fun i => s[i]?).Dom,
+      c.eval f n = Part.some ((c.eval (fun i => s[i]?) n).get hdom)) ∧
+    (n ∈ (c.eval f).Dom → ∃ s', s <+: s' ∧ n ∈ (c.eval fun i => s'[i]?).Dom) := by
+  exact ⟨oracle_use_forward c s f n hsf, oracle_use_backward c s f n hsf⟩
+
 /--
 The key property of `extend c p`. Suppose `extend c p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
+
 theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
   let s := p.1; let t := p.2
   by_cases h : ∃ s', s <+: s' ∧ t.length ∈ (c.eval fun n => s'[n]?).Dom
@@ -108,13 +177,43 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     simp only [extend] at hf hg
     rw [dif_pos h] at hf hg
     simp at hf hg
-    sorry
+    intro a
+    let w := h.choose
+    let k := (c.eval (fun n => w[n]?) t.length).get h.choose_spec.2
+    have hf' : w.IsPrefixOfFun f := by
+      simpa [w] using hf
+    have hg' : (p.2 ++ [((c.eval (fun n => h.choose[n]?) p.2.length).get h.choose_spec.2 + 1)]).IsPrefixOfFun g := by
+      simpa using hg
+    have hfg_at : c.eval f t.length = Part.some (g t.length) := by
+      simpa using congrArg (fun q => q t.length) a
+    have hgt : g t.length = k + 1 := by
+      have htlt : t.length <
+          (p.2 ++ [((c.eval (fun n => h.choose[n]?) p.2.length).get h.choose_spec.2 + 1)]).length := by
+        simpa [t]
+      simpa [w, k, t] using (hg' t.length htlt).symm
+    have hval : c.eval f t.length = Part.some k :=
+      (oracle_use c w f t.length hf').1 (by simpa [w] using h.choose_spec.2)
+    have hsome :
+        Part.some k = Part.some (k + 1) := by
+      calc
+        Part.some k = c.eval f t.length := hval.symm
+        _ = Part.some (g t.length) := hfg_at
+        _ = Part.some (k + 1) := by simpa [hgt]
+    exact (Nat.succ_ne_self _) (Part.some_injective hsome).symm
   · -- Case 2: `|t| ∉ (c.eval f).Dom`, while `g` is total.
     simp only [extend] at hf
     rw [dif_neg h] at hf
     simp at hf
     push_neg at h
-    sorry
+    intro a
+    have hfg_at : c.eval f t.length = Part.some (g t.length) := by
+      simpa using congrArg (fun q => q t.length) a
+    have hdom_f : t.length ∈ (c.eval f).Dom := by
+      change (c.eval f t.length).Dom
+      rw [hfg_at]
+      simp
+    rcases (oracle_use c s f t.length hf).2 hdom_f with ⟨s', hs', hdom'⟩
+    exact (h s' hs') hdom'
 
 /--
 Build the sequence using `extend` twice at each step.
