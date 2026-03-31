@@ -4,30 +4,32 @@ public import Project.OracleCode
 
 namespace List
 
+variable {α : Type*}
+
 /--
 Given a sequence of lists `s : ℕ → List α` such that `n < (s n).length` for every `n`, we can define their limit: `limit s hs n` is defined to be `(s n)[n]`.
 
 TODO: does something like this already exist in mathlib?
 -/
-def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
+def limit (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
   fun n => (s n).get ⟨n, hs n⟩
 
 /--
 A list `l` is a prefix of a function `f : ℕ → α` if for every `n < l.length`, `l[n] = f n`.
 -/
-def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
+def IsPrefixOfFn (l : List α) (f : ℕ → α) : Prop :=
   ∀ (n : ℕ) (hn : n < l.length), l.get ⟨n, hn⟩ = f n
 
 /--
 If list `l` is a prefix of list `l'`, and `l'` is a prefix of function `f`, then `l` is also a prefix of `f`.
 -/
-lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f :=
+lemma prefixOfFn_of_prefix_of_prefixOfFn {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFn f) : l.IsPrefixOfFn f :=
   sorry
 
 /--
 If `s` is monotone in the sense that `s n` is a prefix of `s (n+1)` for all `n`, then each `s n` is a prefix of `limit s`.
 -/
-lemma prefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) (hs_mono : ∀ n, s n <+: s (n+1)) : ∀ n, (s n).IsPrefixOfFun (limit s hs) := by
+lemma prefixOfFn_limit (s : ℕ → List α) (hs : ∀ n, n < (s n).length) (hs_mono : ∀ n, s n <+: s (n+1)) : ∀ n, (s n).IsPrefixOfFn (limit s hs) := by
   have hs_mono' : ∀ {a b : ℕ}, a ≤ b → s a <+: s b := by
     intro a b hab
     induction hab with
@@ -46,6 +48,20 @@ lemma prefixOfFun_limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length
     have h1 : (s n)[m]? = some ((s m)[m]'(hs m)) := (List.prefix_iff_getElem?.mp hprefix) m (hs m)
     have h2 : (s n)[m]? = some ((s n)[m]'hm) := List.getElem?_eq_getElem hm
     exact Option.some.inj (h2.symm.trans h1)
+
+/--
+The list `List.ofFn fun n : Fin m => f n` is a prefix of the function `f`.
+-/
+lemma prefixOfFn_ofFn {α} (f : ℕ → α) (m : ℕ) :
+    IsPrefixOfFn (ofFn fun n : Fin m => f n) f := by
+  sorry
+
+/--
+The list `List.ofFn fun n : Fin m => f n` is a prefix of the function `g` iff `f n = g n` for all `n < m`.
+-/
+lemma prefixOfFn_ofFn_iff {α} (f g : ℕ → α) (m : ℕ) :
+    IsPrefixOfFn (ofFn fun n : Fin m => f n) g ↔ ∀ n < m, f n = g n := by
+  sorry
 
 end List
 
@@ -85,7 +101,7 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
 /--
 The key property of `extend c p`. Suppose `extend c p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
-theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
+theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFn f) (hg : (extend c p).2.IsPrefixOfFn g) : c.eval f ≠ g := by
   let s := p.1; let t := p.2
   by_cases h : ∃ s', s <+: s' ∧ t.length ∈ (c.eval fun n => s'[n]?).Dom
   · -- Case 1: `c.eval f |t| = k`, while `g |t| = k + 1`.
@@ -154,22 +170,22 @@ theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) 
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
     let p := Prod.swap (extend c (seq n))
     refine extend_spec c p g f ?_ ?_ hc
-    · exact List.prefixOfFun_of_prefix_of_prefixOfFun
+    · exact List.prefixOfFn_of_prefix_of_prefixOfFn
         (by simp [seq2, seq, p, n])
-        (List.prefixOfFun_limit seq2 lt_length_seq2 seq2_mono (n+1))
-    · exact List.prefixOfFun_of_prefix_of_prefixOfFun
+        (List.prefixOfFn_limit seq2 lt_length_seq2 seq2_mono (n+1))
+    · exact List.prefixOfFn_of_prefix_of_prefixOfFn
         (by simp [seq1, seq, p, n])
-        (List.prefixOfFun_limit seq1 lt_length_seq1 seq1_mono (n+1))
+        (List.prefixOfFn_limit seq1 lt_length_seq1 seq1_mono (n+1))
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (g ≤ᵀ f)`.
     let p := seq n
     refine extend_spec c p f g ?_ ?_ hc
-    · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
-        (List.prefixOfFun_limit seq1 lt_length_seq1 seq1_mono (n+1))
+    · refine List.prefixOfFn_of_prefix_of_prefixOfFn ?_
+        (List.prefixOfFn_limit seq1 lt_length_seq1 seq1_mono (n+1))
       simp [seq1, seq, p, n]
       grind [prefix_extend_snd]
-    · refine List.prefixOfFun_of_prefix_of_prefixOfFun ?_
-        (List.prefixOfFun_limit seq2 lt_length_seq2 seq2_mono (n+1))
+    · refine List.prefixOfFn_of_prefix_of_prefixOfFn ?_
+        (List.prefixOfFn_limit seq2 lt_length_seq2 seq2_mono (n+1))
       simp [seq2, seq, p, n]
       grind [prefix_extend_fst]
 
