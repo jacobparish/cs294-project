@@ -2,6 +2,8 @@ module
 
 public import Project.OracleCode
 
+@[expose] public section
+
 namespace RecursiveIn.Code
 
 /--
