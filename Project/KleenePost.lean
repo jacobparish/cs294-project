@@ -65,18 +65,16 @@ noncomputable section
 
 open Classical in
 /--
-Given a `RecursiveIn.Code` `c` and a pair of lists `(s, t)`, output `(s', t')` such that for all `f` extending `s'`, `c.eval f` is not a function extending `t'`.
+Given a `RecursiveIn.Code` `c` and a pair of lists `(s, t)`, `extend c (s, t)` returns a pair `(s', t')` such that `s' ⊇ s`, `t' ⊇ t`, and for all `f` extending `s'`, `c.eval f` is not a function extending `t'`.
 -/
-def extend (c : Code) : List ℕ × List ℕ → List ℕ × List ℕ :=
-  fun (s, t) =>
-  let m := t.length;
-  if h : ∃ s', s <+: s' ∧ m ∈ (c.eval fun n => s'[n]?).Dom then
-    -- Case 1: there is some `s' ⊇ s` such that `c.eval s' m` halts and outputs `k`. Then return `(s', t ++ [k+1])`.
+def extend (c : Code) : List ℕ × List ℕ → List ℕ × List ℕ := fun (s, t) =>
+  if h : ∃ s', s <+: s' ∧ t.length ∈ (c.eval fun n => s'[n]?).Dom then
+    -- Case 1: there is some `s' ⊇ s` such that `c.eval s' |t|` halts and outputs `k`. Then return `(s', t ++ [k+1])`.
     let s' := h.choose;
-    let k := (c.eval (fun n => s'[n]?) m).get h.choose_spec.2;
+    let k := (c.eval (fun n => s'[n]?) t.length).get h.choose_spec.2;
     (s', t ++ [k+1])
   else
-    -- Case 2: there is no `s' ⊇ s` such that `c.eval s' m` halts. Then return `(s, t)`.
+    -- Case 2: there is no `s' ⊇ s` such that `c.eval s' |t|` halts. Then return `(s, t)`.
     (s, t)
 
 /--
@@ -102,10 +100,22 @@ lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend 
   · simp
 
 /--
-The key property of `extend n p`. Suppose `extend n p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
+The key property of `extend c p`. Suppose `extend c p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
 -/
 theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (hf : (extend c p).1.IsPrefixOfFun f) (hg : (extend c p).2.IsPrefixOfFun g) : c.eval f ≠ g := by
-  sorry
+  let s := p.1; let t := p.2
+  by_cases h : ∃ s', s <+: s' ∧ t.length ∈ (c.eval fun n => s'[n]?).Dom
+  · -- Case 1: `c.eval f |t| = k`, while `g |t| = k + 1`.
+    simp only [extend] at hf hg
+    rw [dif_pos h] at hf hg
+    simp at hf hg
+    sorry
+  · -- Case 2: `|t| ∉ (c.eval f).Dom`, while `g` is total.
+    simp only [extend] at hf
+    rw [dif_neg h] at hf
+    simp at hf
+    push_neg at h
+    sorry
 
 /--
 Build the sequence using `extend` twice at each step.
