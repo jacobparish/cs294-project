@@ -120,6 +120,7 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
     simp [evalq, eval, ← IHcf, ← IHcg, Part.bind_some_eq_map]
     rfl
   | prec cf cg IHcf IHcg =>
+    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     suffices ∀ a m, Prod.fst <$> (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).eval o (Nat.pair a m) by
       convert this n.unpair.1 n.unpair.2 <;> simp
     intro a m
@@ -133,6 +134,7 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
       funext p
       apply IHcg
   | rfind' cf IHcf =>
+    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     suffices ∀ a m, Prod.fst <$> (cf.rfind').evalq o (Nat.pair a m) = (cf.rfind').eval o (Nat.pair a m) by
       convert this n.unpair.1 n.unpair.2 <;> simp
     intro a m
@@ -178,27 +180,29 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
     simp [queries, evalq, Part.bind, Part.assert] at hn ⊢
     solve_by_elim
   | prec cf cg IHcf IHcg =>
+    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     revert hn
-    suffices ∀ a m (ham : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom), ↑(((cf.prec cg).queries o (Nat.pair a m)).get ham) ⊆ o.Dom by
+    suffices ∀ a m (hm : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom), ↑(((cf.prec cg).queries o (Nat.pair a m)).get hm) ⊆ o.Dom by
       convert this n.unpair.1 n.unpair.2
       simp
-    intro a m ham
+    intro a m hm
     induction m with
     | zero =>
-      simp [queries, evalq] at ham ⊢
-      exact IHcf ham
+      simp [queries, evalq] at hm ⊢
+      exact IHcf hm
     | succ m IHm =>
       simp [queries_prec_succ, Part.bind, Part.assert]
-      simp [evalq_prec_succ] at ham
-      obtain ⟨z, y, ⟨s, h1, h2⟩, ⟨t, h3⟩⟩ := ham
+      simp [evalq_prec_succ] at hm
+      obtain ⟨z, y, ⟨s, h1, h2⟩, ⟨t, h3⟩⟩ := hm
       use IHm h1
       grind
   | rfind' cf IHcf =>
+    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     revert hn
-    suffices ∀ a m (ham : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom), ↑((cf.rfind'.queries o (Nat.pair a m)).get ham) ⊆ o.Dom by
+    suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom), ↑((cf.rfind'.queries o (Nat.pair a m)).get hm) ⊆ o.Dom by
       convert this n.unpair.1 n.unpair.2
       simp
-    intro a m ham
+    intro a m hm
     sorry
 
 /--
@@ -221,20 +225,20 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
   | prec cf cg IHcf IHcg =>
     -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     revert hn ho'
-    suffices ∀ a m (ham : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom) (ho' : ∀ i ∈ ((cf.prec cg).queries o (Nat.pair a m)).get ham, o i = o' i), (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) by
+    suffices ∀ a m (hm : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom) (ho' : ∀ i ∈ ((cf.prec cg).queries o (Nat.pair a m)).get hm, o i = o' i), (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) by
       convert this n.unpair.1 n.unpair.2
       simp
-    intro a m ham ho'
+    intro a m hm ho'
     induction m with
     | zero =>
       simp at ho' ⊢
       refine IHcf ?_ ho'
-      simp at ham ⊢
-      exact ham
+      simp at hm ⊢
+      exact hm
     | succ m IHm =>
-      simp [evalq_prec_succ] at ham ⊢
+      simp [evalq_prec_succ] at hm ⊢
       simp [queries_prec_succ] at ho'
-      obtain ⟨y, k, ⟨s, hs⟩, ⟨t, ht⟩⟩ := ham
+      obtain ⟨y, k, ⟨s, hs⟩, ⟨t, ht⟩⟩ := hm
       have h1 : (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) := by
         refine IHm hs.1 ?_
         intro i hi
@@ -256,10 +260,10 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
   | rfind' cf IHcf =>
     -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     revert hn ho'
-    suffices ∀ a m (ham : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom) (ho' : ∀ i ∈ (cf.rfind'.queries o (Nat.pair a m)).get ham, o i = o' i), cf.rfind'.evalq o (Nat.pair a m) = cf.rfind'.evalq o' (Nat.pair a m) by
+    suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom) (ho' : ∀ i ∈ (cf.rfind'.queries o (Nat.pair a m)).get hm, o i = o' i), cf.rfind'.evalq o (Nat.pair a m) = cf.rfind'.evalq o' (Nat.pair a m) by
       convert this n.unpair.1 n.unpair.2
       simp
-    intro a m ham ho'
+    intro a m hm ho'
     sorry
 
 end RecursiveIn.Code
