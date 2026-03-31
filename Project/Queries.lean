@@ -232,7 +232,27 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
       simp at ham ⊢
       exact ham
     | succ m IHm =>
-      sorry
+      simp [evalq_prec_succ] at ham ⊢
+      simp [queries_prec_succ] at ho'
+      obtain ⟨y, k, ⟨s, hs⟩, ⟨t, ht⟩⟩ := ham
+      have h1 : (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) := by
+        refine IHm hs.1 ?_
+        intro i hi
+        refine ho' i ?_
+        simp [Part.bind, Part.assert]
+        exact .inl hi
+      have h2 : cg.evalq o (Nat.pair a (Nat.pair m k)) = cg.evalq o' (Nat.pair a (Nat.pair m k)) := by
+        refine IHcg ht.1 ?_
+        intro i hi
+        refine ho' i ?_
+        simp [queries, Part.bind, Part.assert] at hi ⊢
+        rw [Part.get_eq_of_mem ht] at hi
+        have := congrArg Prod.fst <| (Part.get_eq_iff_mem hs.1).mpr hs
+        simp at this
+        rw [← this] at ht
+        rw [Part.get_eq_of_mem ht]
+        exact .inr hi
+      rw [← h1, Part.bind_of_mem hs, Part.bind_of_mem hs, ← h2]
   | rfind' cf IHcf =>
     -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     revert hn ho'
