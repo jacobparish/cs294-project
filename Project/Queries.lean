@@ -4,6 +4,28 @@ public import Project.OracleCode
 
 @[expose] public section
 
+namespace Nat
+
+def rfindFold {α β} (f : ℕ →. Bool × α) (g : α → β → β) (init : β) : Part (ℕ × β) := do
+  let n ← rfind (Prod.fst <$> f)
+  let b ← n.succ.rec (pure init) fun k pb => do
+    let b ← pb
+    let (_, a) ← f k
+    pure (g a b)
+  pure (n, b)
+
+lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : Prod.fst <$> rfindFold f g init = rfind (Prod.fst <$> f) := by
+  sorry
+
+lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) : ∀ k ≤ p.1, (f k).Dom := by
+  sorry
+
+lemma rfindFold_snd_eq_fold {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) :
+    p.2 = (p.1+1).fold (fun k hk b => g ((f k).get (rfindFold_dom h k (le_of_lt_succ hk))).2 b) init := by
+  sorry
+
+end Nat
+
 namespace RecursiveIn.Code
 
 /--
@@ -32,16 +54,8 @@ def evalq (c : Code) (o : ℕ →. ℕ) : ℕ →. ℕ × Finset ℕ := match c 
         let q ← cg.evalq o (Nat.pair a (Nat.pair k p.1))
         pure (q.1, p.2 ∪ q.2)
   | rfind' cf =>
-    -- TODO: It would be better if there were a sort of `rfind` + `fold`, so that we don't have to do this.
-    Nat.unpaired fun a m => do
-      -- First run `rfind` to see if it actually halts.
-      let n ← Nat.rfind fun n => (fun p => p.1 = 0) <$> cf.evalq o (Nat.pair a (n + m))
-      -- If it halts, then we can go back and take the union of all oracle queries made.
-      let s ← n.succ.rec (pure ∅) fun k IH => do
-        let s ← IH
-        let p ← cf.evalq o (Nat.pair a (k + m))
-        pure (s ∪ p.2)
-      pure (n + m, s)
+    Nat.unpaired fun a m => Prod.map (· + m) id <$>
+      Nat.rfindFold (fun n => Prod.map (· = 0) id <$> cf.evalq o (Nat.pair a (n + m))) (· ∪ ·) ∅
 
 @[simp]
 lemma evalq_zero (o : ℕ →. ℕ) (n : ℕ) : evalq zero o n = Part.some (0, ∅) := rfl
@@ -138,36 +152,14 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
   | rfind' cf IHcf =>
     -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
     suffices ∀ a m, Prod.fst <$> (cf.rfind').evalq o (Nat.pair a m) = (cf.rfind').eval o (Nat.pair a m) by
-      convert this n.unpair.1 n.unpair.2 <;> simp
+      convert this n.unpair.1 n.unpair.2 <;> simp only [Nat.pair_unpair]
     intro a m
-    let g1 := fun n => (fun m => decide (m = 0)) <$> cf.eval o (Nat.pair a (n + m))
-    let g2 := fun n => (fun p => decide (p.1 = 0)) <$> cf.evalq o (Nat.pair a (n + m))
-    have : g1 = g2 := by simp [g1, g2, ← IHcf]; rfl
-    by_cases h1 : (Nat.rfind g1).Dom
-    · have h2 : (Nat.rfind g2).Dom := by rwa [this] at h1
-      let n := (Nat.rfind g1).get h1
-      have hn1 : Nat.rfind g1 = Part.some n := by simp [n]
-      have hn2 : Nat.rfind g2 = Part.some n := by simp [n, this]
-      simp only [evalq, eval, Nat.unpaired, Nat.unpair_pair]
-      rw [hn1, hn2]
-      simp
-      -- The `eval` side is now `Part.some (n+m)`. We need to show that the `evalq` side also evaluates to `Part.some (n+m)`. Right now it is some sequence of binds followed by a `.bind fun _ => Part.some (n+m)`. So all we need to show is that each of those binds returns `some`.
-      apply bind_const_eq_of_dom
-      simp
-      have hn : n ∈ (Nat.rfind g2) := Part.eq_some_iff.mp hn2
-      constructor
-      · refine rec_dom (fun k hk _ => ?_) _
-        have h := Nat.rfind_min hn hk
-        simp [g2] at h ⊢
-        exact h.choose_spec.1.choose_spec.1
-      · have h := Nat.rfind_spec hn
-        simp [g2] at h
-        exact h.choose_spec.1
-    · have h2 : ¬(Nat.rfind g2).Dom := by rwa [this] at h1
-      rw [← Part.eq_none_iff'] at h1 h2
-      simp only [evalq, eval, Nat.unpaired, Nat.unpair_pair]
-      rw [h1, h2]
-      simp
+    have : (fun n => Part.map (fun x => decide (x = 0)) (Prod.fst <$> cf.evalq o (Nat.pair a (n+m)))) = (fun n => Part.map (fun x => decide (x = 0)) (cf.eval o (Nat.pair a (n + m)))) := by
+      funext n
+      rw [IHcf]
+    simp [eval, evalq]
+    rw [← this, Part.map_map, Prod.map_fst', ← Part.map_map, ← Part.map_eq_map, ← Part.map_eq_map, Nat.rfindFold_fst_eq_rfind]
+    rfl
 
 /--
 If `evalq c o n` halts, then the set of oracle queries made is contained in the domain of `o`.
@@ -203,9 +195,26 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
     revert hn
     suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom), ↑((cf.rfind'.queries o (Nat.pair a m)).get hm) ⊆ o.Dom by
       convert this n.unpair.1 n.unpair.2
-      simp
+      simp only [Nat.pair_unpair]
     intro a m hm
-    sorry
+    simp [evalq] at hm
+    let p := ((Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m))))
+    (fun x1 x2 => x1 ∪ x2) ∅)).get hm
+    have hp : p ∈ _ := Part.get_mem hm
+    simp [queries, evalq]
+    rw [Nat.rfindFold_snd_eq_fold hp]
+    have hn := Nat.rfindFold_dom hp
+    simp at hn
+    simp only [Part.map_get, Function.comp_apply, Prod.map_snd, id_eq]
+    simp only [queries, Part.map_eq_map, Part.map_get, Function.comp_apply] at IHcf
+    suffices ∀ x (hx : x ≤ p.1 + 1), ↑(x.fold (fun k hk b => ((cf.evalq o (Nat.pair a (k + m))).get (by grind)).2 ∪ b) ∅) ⊆ o.Dom from
+      this (p.1 + 1) le_rfl
+    intro x hx
+    induction x with
+    | zero => simp
+    | succ x IHx =>
+      simp
+      exact ⟨IHcf <| hn x (Nat.le_of_succ_le_succ hx), IHx <| Nat.le_of_succ_le hx⟩
 
 /--
 The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `evalq c o n = evalq c o' n`.
@@ -264,7 +273,7 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
     revert hn ho'
     suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom) (ho' : ∀ i ∈ (cf.rfind'.queries o (Nat.pair a m)).get hm, o i = o' i), cf.rfind'.evalq o (Nat.pair a m) = cf.rfind'.evalq o' (Nat.pair a m) by
       convert this n.unpair.1 n.unpair.2
-      simp
+      simp only [Nat.pair_unpair]
     intro a m hm ho'
     sorry
 
