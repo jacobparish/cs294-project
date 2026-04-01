@@ -198,8 +198,7 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
       simp only [Nat.pair_unpair]
     intro a m hm
     simp [evalq] at hm
-    let p := ((Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m))))
-    (fun x1 x2 => x1 ∪ x2) ∅)).get hm
+    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hm
     have hp : p ∈ _ := Part.get_mem hm
     simp [queries, evalq]
     rw [Nat.rfindFold_snd_eq_fold hp]
