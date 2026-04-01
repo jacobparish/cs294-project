@@ -57,10 +57,8 @@ theorem rfind' {O f} (hf : RecursiveIn O f) :
       | rfind hf ihf => exact .rfind ihf
     let shift : ℕ → ℕ := fun x =>
       Nat.pair (Nat.unpair (Nat.unpair x).1).1 ((Nat.unpair x).2 + (Nat.unpair (Nat.unpair x).1).2)
-    have hshift_primrec : Primrec shift := by
-      dsimp [shift]
-      exact
-        Primrec₂.natPair.comp
+    have hshift_primrec : Primrec shift :=
+      Primrec₂.natPair.comp
           (Primrec.fst.comp (Primrec.unpair.comp (Primrec.fst.comp Primrec.unpair)))
           (Primrec.nat_add.comp
             (Primrec.snd.comp Primrec.unpair)
