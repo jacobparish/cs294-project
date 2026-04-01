@@ -95,24 +95,6 @@ theorem rfind' {O f} (hf : RecursiveIn O f) :
         simp [Function.comp, Nat.unpair_pair]
       simpa [addPair, Seq.seq, Part.bind_some_eq_map, Part.map_map, Part.map_eq_map, hfg]
     simpa [Nat.unpaired, Nat.unpair_pair, Nat.pair_unpair] using hfinal
-  -- TODO: Update this proof.
-  -- Partrec₂.unpaired'.2 <| by
-  --   refine
-  --     Partrec.map
-  --       ((@Partrec₂.unpaired' fun a b : ℕ =>
-  --             Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + b))).1
-  --         ?_)
-  --       (Primrec.nat_add.comp Primrec.snd <| Primrec.snd.comp Primrec.fst).to_comp.to₂
-  --   have : Nat.Partrec (fun a => Nat.rfind (fun n => (fun m => decide (m = 0)) <$>
-  --     Nat.unpaired (fun a b => f (Nat.pair (Nat.unpair a).1 (b + (Nat.unpair a).2)))
-  --       (Nat.pair a n))) :=
-  --     rfind
-  --       (Partrec₂.unpaired'.2
-  --         ((Partrec.nat_iff.2 hf).comp
-  --             (Primrec₂.pair.comp (Primrec.fst.comp <| Primrec.unpair.comp Primrec.fst)
-  --                 (Primrec.nat_add.comp Primrec.snd
-  --                   (Primrec.snd.comp <| Primrec.unpair.comp Primrec.fst))).to_comp))
-  --   simpa
 
 /-- Code for partial recursive functions from ℕ to ℕ with an oracle.
 See `RecursiveIn.Code.eval` for the interpretation of these constructors.
