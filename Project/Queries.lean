@@ -52,7 +52,17 @@ lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β �
   · simp [rfindFold, Part.eq_none_iff'.mpr h]
 
 lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) : ∀ k ≤ p.1, (f k).Dom := by
-  sorry
+  have hn : p.1 ∈ rfind (Prod.fst <$> f) := by
+    rw [← rfindFold_fst_eq_rfind]
+    exact Part.mem_map _ h
+  simp at hn
+  intro k hk
+  by_cases hkn : k = p.1
+  · rw [hkn]
+    have := Part.dom_iff_mem.mpr ⟨true, hn.1⟩
+    exact this
+  · have := Part.dom_iff_mem.mpr ⟨false, hn.2 (hk.lt_of_ne hkn)⟩
+    exact this
 
 lemma rfindFold_snd_eq_fold {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) :
     p.2 = (p.1+1).fold (fun k hk b => g ((f k).get (rfindFold_dom h k (le_of_lt_succ hk))).2 b) init := by
