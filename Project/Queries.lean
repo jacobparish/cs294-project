@@ -4,18 +4,52 @@ public import Project.OracleCode
 
 @[expose] public section
 
+namespace Part
+
+variable {α β : Type*}
+
+/--
+If `(f k a).Dom` holds for all `k < n` and all `a`, then also `(pure a >>= f 0 >>= f 1 >>= ... >>= f (n-1)).Dom` holds.
+-/
+private lemma rec_dom {f : ℕ → α →. α} {n : ℕ} (hf : ∀ k < n, ∀ a, (f k a).Dom) (a : α) : (n.rec (pure a) (fun k IH => IH.bind (f k)) : Part α).Dom := by
+  induction n with
+  | zero => simp
+  | succ n IH => exact ⟨IH (by grind), hf n n.lt_add_one _⟩
+
+/--
+`p.bind` followed by a constant function is equal to the constant, if `p.Dom` holds.
+-/
+private lemma bind_const_eq_of_dom {p : Part α} (hp : p.Dom) (b : Part β) : p.bind (fun _ => b) = b := by
+  grind only [Part.Dom.bind]
+
+end Part
+
 namespace Nat
 
 def rfindFold {α β} (f : ℕ →. Bool × α) (g : α → β → β) (init : β) : Part (ℕ × β) := do
   let n ← rfind (Prod.fst <$> f)
-  let b ← n.succ.rec (pure init) fun k pb => do
-    let b ← pb
+  let b ← n.succ.rec (pure init) fun k IH => do
+    let b ← IH
     let (_, a) ← f k
     pure (g a b)
   pure (n, b)
 
 lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : Prod.fst <$> rfindFold f g init = rfind (Prod.fst <$> f) := by
-  sorry
+  by_cases h : (rfind (Prod.fst <$> f)).Dom
+  · let n := (rfind (Prod.fst <$> f)).get h
+    have hn : rfind (Prod.fst <$> f) = Part.some n := (Part.some_get h).symm
+    simp [rfindFold, hn]
+    apply Part.bind_const_eq_of_dom
+    apply Part.get_mem at h
+    simp at h ⊢
+    constructor
+    · apply Part.rec_dom
+      intro k hk _
+      have := Part.dom_iff_mem.mpr ⟨false, h.2 hk⟩
+      simpa
+    · have := Part.dom_iff_mem.mpr ⟨true, h.1⟩
+      simpa
+  · simp [rfindFold, Part.eq_none_iff'.mpr h]
 
 lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) : ∀ k ≤ p.1, (f k).Dom := by
   sorry
@@ -110,20 +144,6 @@ theorem queries_prec_succ (cf cg : Code) (o : ℕ →. ℕ) (a k : ℕ) :
     (prec cf cg).queries o (Nat.pair a (Nat.succ k)) =
       do {let p ← evalq (prec cf cg) o (Nat.pair a k); let s ← queries cg o (Nat.pair a (Nat.pair k p.1)); pure (p.2 ∪ s)} := by
   simp [queries, evalq_prec_succ]
-
-/--
-If `(f k a).Dom` holds for all `k < n` and all `a`, then also `(pure a >>= f 0 >>= f 1 >>= ... >>= f (n-1)).Dom` holds.
--/
-private lemma rec_dom {α} {f : ℕ → α →. α} {n : ℕ} (hf : ∀ k < n, ∀ a, (f k a).Dom) (a : α) : (n.rec (pure a) (fun k IH => IH.bind (f k)) : Part α).Dom := by
-  induction n with
-  | zero => simp
-  | succ n IH => exact ⟨IH (by grind), hf n n.lt_add_one _⟩
-
-/--
-`p.bind` followed by a constant function is equal to the constant, if `p.Dom` holds.
--/
-private lemma bind_const_eq_of_dom {α β} {p : Part α} (hp : p.Dom) (b : Part β) : p.bind (fun _ => b) = b := by
-  grind only [Part.Dom.bind]
 
 /--
 The first coordinate of `evalq` agrees with `eval`.
