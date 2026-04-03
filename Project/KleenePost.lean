@@ -21,8 +21,14 @@ def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
 /--
 If list `l` is a prefix of list `l'`, and `l'` is a prefix of function `f`, then `l` is also a prefix of `f`.
 -/
-lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f :=
-  sorry
+lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f := by
+  intro n hn
+  have hn' : n < l'.length := lt_of_lt_of_le hn h1.length_le
+  have hprefix : l'[n]? = some ((l[n]'hn)) := (List.prefix_iff_getElem?.mp h1) n hn
+  have hfun : l'[n]? = some (f n) := by
+    rw [List.getElem?_eq_getElem hn']
+    exact congrArg some (h2 n hn')
+  exact Option.some.inj (hprefix.symm.trans hfun)
 
 /--
 If `s` is monotone in the sense that `s n` is a prefix of `s (n+1)` for all `n`, then each `s n` is a prefix of `limit s`.
@@ -74,13 +80,23 @@ def extend (c : Code) : List ℕ × List ℕ → List ℕ × List ℕ := fun (s,
 `extend` is increasing in the first argument.
 -/
 lemma prefix_extend_fst (c : Code) (p : List ℕ × List ℕ) : p.1 <+: (extend c p).1 := by
-  sorry
+  rcases p with ⟨s, t⟩
+  unfold extend
+  simp only
+  split_ifs with h
+  · simpa using h.choose_spec.1
+  · simp
 
 /--
 `extend` is increasing in the second argument.
 -/
 lemma prefix_extend_snd (c : Code) (p : List ℕ × List ℕ) : p.2 <+: (extend c p).2 := by
-  sorry
+  rcases p with ⟨s, t⟩
+  unfold extend
+  simp only
+  split_ifs with h
+  · exact List.prefix_append t [((c.eval fun n => h.choose[n]?) t.length).get h.choose_spec.2 + 1]
+  · simp
 
 /--
 The key property of `extend c p`. Suppose `extend c p = (s', t')`. If (1) `f` is a function `ℕ → ℕ` extending `s'`, and (2) `g` is a function `ℕ → ℕ` extending `t'`, then `c.eval f ≠ g`.
@@ -121,25 +137,61 @@ def seq2 : ℕ → List ℕ := fun n => (seq n).2
 `seq1` is monotone.
 -/
 lemma seq1_mono (n : ℕ) : seq1 n <+: seq1 (n+1) := by
-  sorry
+  let c := Denumerable.ofNat Code n
+  have h1 : (seq n).1 <+: (extend c (seq n)).1 := prefix_extend_fst c (seq n)
+  have h2 : (extend c (seq n)).1 <+: (extend c (Prod.swap (extend c (seq n)))).2 := by
+    simpa using (prefix_extend_snd c (Prod.swap (extend c (seq n))))
+  have h3 : (extend c (Prod.swap (extend c (seq n)))).2 <+:
+      (extend c (Prod.swap (extend c (seq n)))).2 ++ [0] := List.prefix_append _ _
+  simpa [seq1, seq, c] using h1.trans (h2.trans h3)
 
 /--
 `seq2` is monotone.
 -/
 lemma seq2_mono (n : ℕ) : seq2 n <+: seq2 (n+1) := by
-  sorry
+  let c := Denumerable.ofNat Code n
+  have h1 : (seq n).2 <+: (extend c (seq n)).2 := prefix_extend_snd c (seq n)
+  have h2 : (extend c (seq n)).2 <+: (extend c (Prod.swap (extend c (seq n)))).1 := by
+    simpa using (prefix_extend_fst c (Prod.swap (extend c (seq n))))
+  have h3 : (extend c (Prod.swap (extend c (seq n)))).1 <+:
+      (extend c (Prod.swap (extend c (seq n)))).1 ++ [0] := List.prefix_append _ _
+  simpa [seq2, seq, c] using h1.trans (h2.trans h3)
 
 /--
 For every `n`, `n < (seq1 n).length`. This is used to define the limit.
 -/
 lemma lt_length_seq1 (n : ℕ) : n < (seq1 n).length := by
-  sorry
+  induction n with
+  | zero =>
+    simp [seq1, seq]
+  | succ n ih =>
+    let c := Denumerable.ofNat Code n
+    let q := extend c (Prod.swap (extend c (seq n)))
+    have h1 : (seq n).1 <+: (extend c (seq n)).1 := prefix_extend_fst c (seq n)
+    have h2 : (extend c (seq n)).1 <+: q.2 := by
+      simpa [q] using (prefix_extend_snd c (Prod.swap (extend c (seq n))))
+    have hn : n < q.2.length := lt_of_lt_of_le ih (h1.trans h2).length_le
+    have hsucc : n + 1 < (q.2 ++ [0]).length := by
+      simpa [List.length_append, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Nat.succ_lt_succ hn
+    simpa [seq1, seq, c, q]
 
 /--
 For every `n`, `n < (seq2 n).length`. This is used to define the limit.
 -/
 lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
-  sorry
+  induction n with
+  | zero =>
+    simp [seq2, seq]
+  | succ n ih =>
+    let c := Denumerable.ofNat Code n
+    let q := extend c (Prod.swap (extend c (seq n)))
+    have h1 : (seq n).2 <+: (extend c (seq n)).2 := prefix_extend_snd c (seq n)
+    have h2 : (extend c (seq n)).2 <+: q.1 := by
+      simpa [q] using (prefix_extend_fst c (Prod.swap (extend c (seq n))))
+    have hn : n < q.1.length := lt_of_lt_of_le ih (h1.trans h2).length_le
+    have hsucc : n + 1 < (q.1 ++ [0]).length := by
+      simpa [List.length_append, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Nat.succ_lt_succ hn
+    simpa [seq2, seq, c, q]
 
 /--
 The **Kleene-Post Theorem**: there exist two incomparable Turing degrees.

@@ -43,25 +43,56 @@ theorem rfind' {O f} (hf : RecursiveIn O f) :
     RecursiveIn O
       (Nat.unpaired fun a m =>
         (Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + m))).map (· + m)) :=
-  sorry
-  -- TODO: Update this proof.
-  -- Partrec₂.unpaired'.2 <| by
-  --   refine
-  --     Partrec.map
-  --       ((@Partrec₂.unpaired' fun a b : ℕ =>
-  --             Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + b))).1
-  --         ?_)
-  --       (Primrec.nat_add.comp Primrec.snd <| Primrec.snd.comp Primrec.fst).to_comp.to₂
-  --   have : Nat.Partrec (fun a => Nat.rfind (fun n => (fun m => decide (m = 0)) <$>
-  --     Nat.unpaired (fun a b => f (Nat.pair (Nat.unpair a).1 (b + (Nat.unpair a).2)))
-  --       (Nat.pair a n))) :=
-  --     rfind
-  --       (Partrec₂.unpaired'.2
-  --         ((Partrec.nat_iff.2 hf).comp
-  --             (Primrec₂.pair.comp (Primrec.fst.comp <| Primrec.unpair.comp Primrec.fst)
-  --                 (Primrec.nat_add.comp Primrec.snd
-  --                   (Primrec.snd.comp <| Primrec.unpair.comp Primrec.fst))).to_comp))
-  --   simpa
+  by
+    have recIn_of_partrec : ∀ {g : ℕ →. ℕ}, Nat.Partrec g → RecursiveIn O g := by
+      intro g hg
+      induction hg with
+      | zero => exact .zero
+      | succ => exact .succ
+      | left => exact .left
+      | right => exact .right
+      | pair hf hh ihf ihh => exact .pair ihf ihh
+      | comp hf hh ihf ihh => exact .comp ihf ihh
+      | prec hf hh ihf ihh => exact .prec ihf ihh
+      | rfind hf ihf => exact .rfind ihf
+    let shift : ℕ → ℕ := fun x =>
+      Nat.pair (Nat.unpair (Nat.unpair x).1).1 ((Nat.unpair x).2 + (Nat.unpair (Nat.unpair x).1).2)
+    have hshift_primrec : Primrec shift :=
+      Primrec₂.natPair.comp
+          (Primrec.fst.comp (Primrec.unpair.comp (Primrec.fst.comp Primrec.unpair)))
+          (Primrec.nat_add.comp
+            (Primrec.snd.comp Primrec.unpair)
+            (Primrec.snd.comp (Primrec.unpair.comp (Primrec.fst.comp Primrec.unpair))))
+    have hshift : RecursiveIn O (fun x => shift x) :=
+      recIn_of_partrec (Partrec.nat_iff.mp hshift_primrec.to_comp.partrec)
+    have hcore : RecursiveIn O (fun x => f (shift x)) := by
+      simpa [Part.bind_eq_bind, shift] using (RecursiveIn.comp hf hshift)
+    have hrfind : RecursiveIn O (fun p =>
+      Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2)))) := by
+      simpa [shift, Nat.unpair_pair] using (RecursiveIn.rfind hcore)
+    let addPair : ℕ → ℕ := fun z => (Nat.unpair z).1 + (Nat.unpair z).2
+    have haddPair_primrec : Primrec addPair := by
+      dsimp [addPair]
+      exact Primrec.nat_add.comp (Primrec.fst.comp Primrec.unpair) (Primrec.snd.comp Primrec.unpair)
+    have haddPair : RecursiveIn O (fun z => addPair z) :=
+      recIn_of_partrec (Partrec.nat_iff.mp haddPair_primrec.to_comp.partrec)
+    have hpair :
+        RecursiveIn O (fun p =>
+          Nat.pair <$> (Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2))))
+            <*> Part.some (Nat.unpair p).2) := by
+      exact RecursiveIn.pair hrfind RecursiveIn.right
+    have hfinal : RecursiveIn O (fun p =>
+      (Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2)))).map
+        (fun n => n + (Nat.unpair p).2)) := by
+      convert (RecursiveIn.comp haddPair hpair) using 1
+      funext n
+      have hfg :
+          (fun n_1 => n_1 + (Nat.unpair n).2) =
+            ((fun y => (Nat.unpair y).1 + (Nat.unpair y).2) ∘ (fun y => y (Nat.unpair n).2) ∘ Nat.pair) := by
+        funext x
+        simp [Function.comp, Nat.unpair_pair]
+      simpa [addPair, Seq.seq, Part.bind_some_eq_map, Part.map_map, Part.map_eq_map, hfg]
+    simpa [Nat.unpaired, Nat.unpair_pair, Nat.pair_unpair] using hfinal
 
 /-- Code for partial recursive functions from ℕ to ℕ with an oracle.
 See `RecursiveIn.Code.eval` for the interpretation of these constructors.
