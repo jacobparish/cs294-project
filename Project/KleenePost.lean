@@ -21,15 +21,14 @@ def IsPrefixOfFun {α} (l : List α) (f : ℕ → α) : Prop :=
 /--
 If list `l` is a prefix of list `l'`, and `l'` is a prefix of function `f`, then `l` is also a prefix of `f`.
 -/
-lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f :=
-  by
-    intro n hn
-    have hn' : n < l'.length := lt_of_lt_of_le hn h1.length_le
-    have hprefix : l'[n]? = some ((l[n]'hn)) := (List.prefix_iff_getElem?.mp h1) n hn
-    have hfun : l'[n]? = some (f n) := by
-      rw [List.getElem?_eq_getElem hn']
-      exact congrArg some (h2 n hn')
-    exact Option.some.inj (hprefix.symm.trans hfun)
+lemma prefixOfFun_of_prefix_of_prefixOfFun {α} {l l' : List α} {f : ℕ → α} (h1 : l <+: l') (h2 : l'.IsPrefixOfFun f) : l.IsPrefixOfFun f := by
+  intro n hn
+  have hn' : n < l'.length := lt_of_lt_of_le hn h1.length_le
+  have hprefix : l'[n]? = some ((l[n]'hn)) := (List.prefix_iff_getElem?.mp h1) n hn
+  have hfun : l'[n]? = some (f n) := by
+    rw [List.getElem?_eq_getElem hn']
+    exact congrArg some (h2 n hn')
+  exact Option.some.inj (hprefix.symm.trans hfun)
 
 /--
 If `s` is monotone in the sense that `s n` is a prefix of `s (n+1)` for all `n`, then each `s n` is a prefix of `limit s`.
