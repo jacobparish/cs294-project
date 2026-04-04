@@ -91,11 +91,8 @@ lemma rfindFold_unfold {α β} {f : ℕ →. Bool × α} {g : α → β → β} 
   rw [rfind_unfold, hp, map_eq_map, map_some, bind_some, bind_some]
   simp only
   rcases p.1 with - | -
-  · simp [-fold_succ]
-    congr
-    funext y
-    rw [fold_succ']
-    simp [hp]
+  · simp [fold_succ', -fold_succ, hp]
+    rfl
   · simp [hp]
 
 /--
