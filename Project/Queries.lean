@@ -11,10 +11,10 @@ variable {α β : Type*}
 /--
 If `(f k a).Dom` holds for all `k < n` and all `a`, then also `(pure a >>= f 0 >>= f 1 >>= ... >>= f (n-1)).Dom` holds.
 -/
-private lemma rec_dom {f : ℕ → α →. α} {n : ℕ} (hf : ∀ k < n, ∀ a, (f k a).Dom) (a : α) : (n.rec (pure a) (fun k IH => IH.bind (f k)) : Part α).Dom := by
+private lemma fold_dom {n : ℕ} {f : (k : ℕ) → k < n → α →. α} (hf : ∀ k (hk : k < n) a, (f k hk a).Dom) (a : α) : (n.fold (fun k hk IH => IH.bind (f k hk)) (pure a) : Part α).Dom := by
   induction n with
   | zero => simp
-  | succ n IH => exact ⟨IH (by grind), hf n n.lt_add_one _⟩
+  | succ n IH => simp; exact ⟨IH (by grind), hf n _ _⟩
 
 /--
 `p.bind` followed by a constant function is equal to the constant, if `p.Dom` holds.
@@ -26,49 +26,182 @@ end Part
 
 namespace Nat
 
+open Part
+
+/--
+A version of `fold_succ` that unfolds at the beginning, rather than at the end.
+-/
+lemma fold_succ' {α} (n : ℕ) (f : (i : ℕ) → i < n + 1 → α → α) (init : α) :
+    (n + 1).fold f init = n.fold (fun i h => f (i + 1) (succ_lt_succ h)) (f 0 n.zero_lt_succ init) := by
+  induction n generalizing init with
+  | zero => simp
+  | succ n IH => rw [fold_succ, IH, fold_succ]
+
+/--
+This lemma "unfolds" the first step of an `rfind`. This is useful for doing inductive arguments about `rfind`.
+-/
+lemma rfind_unfold (p : ℕ →. Bool) : rfind p =
+    (p 0).bind fun x => if x then pure 0 else succ <$> rfind (p ∘ succ)
+    := by
+  ext n
+  rcases n with - | n <;> simp
+  refine ⟨by grind, fun h => ⟨h.2.1, ?_⟩⟩
+  intro m hm
+  cases m <;> grind
+
+/--
+Given a partial function `f : ℕ →. Bool × α`, a function `g : α → β → β`, and an initial value `init : β`, `rfindFold f g init` returns a tuple `(n, b)` such that `(f n).1 = true`, `(f k).1 = false` for all `k < n`, and `b` is the result of folding the values `(f 0).2, ..., (f n).2` using the function `g` and the initial value `init`.
+-/
 def rfindFold {α β} (f : ℕ →. Bool × α) (g : α → β → β) (init : β) : Part (ℕ × β) := do
-  let n ← rfind (Prod.fst <$> f)
-  let b ← n.succ.rec (pure init) fun k IH => do
+  let n ← rfind (Prod.fst <$> f ·)
+  let b ← n.succ.fold (fun k _ IH => do
     let b ← IH
-    let (_, a) ← f k
-    pure (g a b)
+    let p ← f k
+    pure (g p.2 b))
+    (pure init)
   pure (n, b)
 
-lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : Prod.fst <$> rfindFold f g init = rfind (Prod.fst <$> f) := by
-  by_cases h : (rfind (Prod.fst <$> f)).Dom
-  · let n := (rfind (Prod.fst <$> f)).get h
-    have hn : rfind (Prod.fst <$> f) = Part.some n := (Part.some_get h).symm
-    simp [rfindFold, hn]
-    apply Part.bind_const_eq_of_dom
-    apply Part.get_mem at h
+/--
+This lemma "unfolds" the first step of an `rfindFold`. This is useful for doing inductive arguments about `rfindFold`.
+-/
+lemma rfindFold_unfold {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : rfindFold f g init = (f 0).bind fun (x, a) => if x then
+      pure (0, g a init)
+    else
+      Prod.map succ id <$> rfindFold (f ∘ succ) g (g a init)
+    := by
+  rcases eq_none_or_eq_some (f 0) with h0 | ⟨p, hp⟩
+  · rw [rfindFold, rfind_zero_none _ (by simp [h0]), h0]
+    simp
+  unfold rfindFold
+  rw [rfind_unfold, hp, map_eq_map, map_some, bind_some, bind_some]
+  simp only
+  rcases p.1 with - | -
+  · simp [-fold_succ]
+    congr
+    funext y
+    rw [fold_succ']
+    simp [hp]
+  · simp [hp]
+
+/--
+The first coordinate of `rfindFold` is the same as evaluating `rfind` over the first coordinate of `f`.
+-/
+lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : Prod.fst <$> rfindFold f g init = rfind (Prod.fst <$> f ·) := by
+  rcases eq_none_or_eq_some (rfind (Prod.fst <$> f ·)) with h | ⟨n, hn⟩
+  · simp_all [rfindFold]
+  · simp [rfindFold, hn, -map_eq_map]
+    simp
+    apply bind_const_eq_of_dom
+    have h : n ∈ rfind (Prod.fst <$> f ·) := eq_some_iff.mp hn
     simp at h ⊢
     constructor
-    · apply Part.rec_dom
+    · apply fold_dom
       intro k hk _
-      have := Part.dom_iff_mem.mpr ⟨false, h.2 hk⟩
-      simpa
-    · have := Part.dom_iff_mem.mpr ⟨true, h.1⟩
-      simpa
-  · simp [rfindFold, Part.eq_none_iff'.mpr h]
+      rw [bind_some_eq_map]
+      simp
+      rw [dom_iff_mem]
+      exact ⟨(false, (h.2 hk).choose), (h.2 hk).choose_spec⟩
+    · rw [dom_iff_mem]
+      exact ⟨(true, h.1.choose), h.1.choose_spec⟩
 
-lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) : ∀ k ≤ p.1, (f k).Dom := by
-  have hn : p.1 ∈ rfind (Prod.fst <$> f) := by
+/--
+If `rfindFold f g init = (n, s)`, then `(f k).Dom` holds for every `k ≤ n`.
+-/
+lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (hp : p ∈ rfindFold f g init) (k : ℕ) (hk : k ≤ p.1) : (f k).Dom := by
+  have hn : p.1 ∈ rfind (Prod.fst <$> f ·) := by
     rw [← rfindFold_fst_eq_rfind]
-    exact Part.mem_map _ h
+    exact mem_map _ hp
   simp at hn
-  intro k hk
   by_cases hkn : k = p.1
   · rw [hkn]
-    have := Part.dom_iff_mem.mpr ⟨true, hn.1⟩
-    exact this
-  · have := Part.dom_iff_mem.mpr ⟨false, hn.2 (hk.lt_of_ne hkn)⟩
-    exact this
+    exact dom_iff_mem.mpr ⟨(true, hn.1.choose), hn.1.choose_spec⟩
+  · have := hn.2 (hk.lt_of_ne hkn)
+    exact dom_iff_mem.mpr ⟨(false, this.choose), this.choose_spec⟩
 
-lemma rfindFold_snd_eq_fold {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (h : p ∈ rfindFold f g init) :
-    p.2 = (p.1+1).fold (fun k hk b => g ((f k).get (rfindFold_dom h k (le_of_lt_succ hk))).2 b) init := by
-  sorry
+/--
+The second coordinate of `rfindFold` is the result of folding the values `(f 0).2, ..., (f n).2` using the function `g` and the initial value `init`.
+-/
+lemma rfindFold_snd_eq_fold {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} {p} (hp : p ∈ rfindFold f g init) :
+    p.2 = (p.1+1).fold (fun k hk b => g ((f k).get (rfindFold_dom hp k (le_of_lt_succ hk))).2 b) init := by
+  rcases p with ⟨n, s⟩
+  induction n generalizing f init with
+  | zero =>
+    have h0 : (f 0).Dom := rfindFold_dom hp 0 zero_le'
+    have h1 : ((f 0).get h0).1 = true := by
+      have := mem_map Prod.fst hp
+      rw [← map_eq_map, rfindFold_fst_eq_rfind] at this
+      simp [-mem_map_iff] at this
+      change (Prod.fst <$> f 0).get h0 = true
+      rwa [get_eq_iff_mem]
+    rw [rfindFold_unfold, eq_some_iff.mpr (get_mem h0), bind_some] at hp
+    simp [h1] at hp
+    simpa
+  | succ n IHn =>
+    have h0 : (f 0).Dom := rfindFold_dom hp 0 zero_le'
+    have h1 : ((f 0).get h0).1 = false := by
+      have := mem_map Prod.fst hp
+      rw [← map_eq_map, rfindFold_fst_eq_rfind] at this
+      simp [-mem_map_iff] at this
+      change (Prod.fst <$> f 0).get h0 = false
+      rw [get_eq_iff_mem]
+      exact this.2 (zero_lt_succ _)
+    rw [rfindFold_unfold, eq_some_iff.mpr (get_mem h0), bind_some] at hp
+    simp [h1] at hp
+    specialize IHn hp
+    rwa [fold_succ']
+
+/--
+If `rfindFold f₁ g init = (n, b)` and if another function `f₂` agrees with `f₁` for all `k ≤ n`, then also `rfindFold f₂ g init = (n, b)`.
+-/
+lemma rfindFold_eq_of_bounded_eq {α β} {f₁ f₂ : ℕ →. Bool × α} {g : α → β → β} {init} {p} (hp : p ∈ rfindFold f₁ g init) (hf : ∀ k ≤ p.1, f₁ k = f₂ k) : rfindFold f₁ g init = rfindFold f₂ g init := by
+  rcases p with ⟨n, s⟩
+  induction n generalizing f₁ f₂ init with
+  | zero =>
+    have h0 : (f₁ 0).Dom := rfindFold_dom hp 0 zero_le'
+    have h1 : ((f₁ 0).get h0).1 = true := by
+      have := mem_map Prod.fst hp
+      rw [← map_eq_map, rfindFold_fst_eq_rfind] at this
+      simp [-mem_map_iff] at this
+      change (Prod.fst <$> f₁ 0).get h0 = true
+      rwa [get_eq_iff_mem]
+    rw [rfindFold_unfold, rfindFold_unfold, ← hf 0 le_rfl, eq_some_iff.mpr (get_mem h0), bind_some, bind_some]
+    simp [h1]
+  | succ n IHn =>
+    have h0 : (f₁ 0).Dom := rfindFold_dom hp 0 zero_le'
+    have h1 : ((f₁ 0).get h0).1 = false := by
+      have := mem_map Prod.fst hp
+      rw [← map_eq_map, rfindFold_fst_eq_rfind] at this
+      simp [-mem_map_iff] at this
+      change (Prod.fst <$> f₁ 0).get h0 = false
+      rw [get_eq_iff_mem]
+      exact this.2 (zero_lt_succ _)
+    rw [rfindFold_unfold, rfindFold_unfold, ← hf 0 zero_le', eq_some_iff.mpr (get_mem h0), bind_some, bind_some]
+    simp [h1]
+    apply congr_arg
+    rw [rfindFold_unfold] at hp
+    simp at hp
+    refine IHn ?_ (by grind)
+    convert hp.choose_spec.2
+    have := get_eq_of_mem hp.choose_spec.1 h0
+    grind
 
 end Nat
+
+namespace Finset
+
+lemma subset_fold_union {α} [DecidableEq α] {n : ℕ} (s : ∀ k < n, Finset α) {k : ℕ} (hk : k < n) : s k hk ⊆ n.fold (fun k hk t => s k hk ∪ t) ∅ := by
+  induction n with
+  | zero => contradiction
+  | succ n IHn =>
+    intro a ha
+    by_cases h : k = n
+    · subst h
+      simp
+      exact .inl ha
+    · simp
+      exact .inr (IHn _ (by omega) ha)
+
+end Finset
 
 namespace RecursiveIn.Code
 
@@ -291,7 +424,7 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
         refine ho' i ?_
         simp [queries, Part.bind, Part.assert] at hi ⊢
         rw [Part.get_eq_of_mem ht] at hi
-        have := congrArg Prod.fst <| (Part.get_eq_iff_mem hs.1).mpr hs
+        have := congr_arg Prod.fst <| (Part.get_eq_iff_mem hs.1).mpr hs
         simp at this
         rw [← this] at ht
         rw [Part.get_eq_of_mem ht]
@@ -304,6 +437,15 @@ theorem evalq_spec {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq 
       convert this n.unpair.1 n.unpair.2
       simp only [Nat.pair_unpair]
     intro a m hm ho'
-    sorry
+    simp [evalq] at hm ⊢
+    apply congr_arg
+    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hm
+    have hp : p ∈ _ := Part.get_mem hm
+    have hn := Nat.rfindFold_dom hp
+    apply Nat.rfindFold_eq_of_bounded_eq hp
+    refine fun k hk => congr_arg _ (IHcf (hn k hk) (fun i hi => ho' i ?_))
+    simp [queries, evalq] at hi ⊢
+    rw [Nat.rfindFold_snd_eq_fold hp]
+    exact Finset.subset_fold_union _ (Nat.lt_succ_of_le hk) hi
 
 end RecursiveIn.Code
