@@ -356,32 +356,26 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
     simp [queries, evalq, Part.bind, Part.assert] at hn ⊢
     solve_by_elim
   | prec cf cg IHcf IHcg =>
-    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
-    revert hn
-    suffices ∀ a m (hm : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom), ↑(((cf.prec cg).queries o (Nat.pair a m)).get hm) ⊆ o.Dom by
-      convert this n.unpair.1 n.unpair.2
-      simp
-    intro a m hm
+    have := n.pair_unpair
+    generalize n.unpair.1 = a, n.unpair.2 = m at this
+    subst this
     induction m with
     | zero =>
-      simp [queries, evalq] at hm ⊢
-      exact IHcf hm
+      simp [queries, evalq] at hn ⊢
+      exact IHcf hn
     | succ m IHm =>
       simp [queries_prec_succ, Part.bind, Part.assert]
-      simp [evalq_prec_succ] at hm
-      obtain ⟨z, y, ⟨s, h1, h2⟩, ⟨t, h3⟩⟩ := hm
+      simp [evalq_prec_succ] at hn
+      obtain ⟨z, y, ⟨s, h1, h2⟩, ⟨t, h3⟩⟩ := hn
       use IHm h1
       grind
   | rfind' cf IHcf =>
-    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
-    revert hn
-    suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom), ↑((cf.rfind'.queries o (Nat.pair a m)).get hm) ⊆ o.Dom by
-      convert this n.unpair.1 n.unpair.2
-      simp only [Nat.pair_unpair]
-    intro a m hm
-    simp [evalq] at hm
-    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hm
-    have hp : p ∈ _ := Part.get_mem hm
+    have := n.pair_unpair
+    generalize n.unpair.1 = a, n.unpair.2 = m at this
+    subst this
+    simp [evalq] at hn
+    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hn
+    have hp : p ∈ _ := Part.get_mem hn
     simp [queries, evalq]
     rw [Nat.rfindFold_snd_eq_fold hp]
     have hn := Nat.rfindFold_dom hp
@@ -415,22 +409,19 @@ theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n �
     simp [Part.bind, Part.assert_pos hn.1]
     rw [← IHcf hn.2 (fun i hi => ho' i (.inr hi))]
   | prec cf cg IHcf IHcg =>
-    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
-    revert hn ho'
-    suffices ∀ a m (hm : Nat.pair a m ∈ ((cf.prec cg).evalq o).Dom) (ho' : ∀ i ∈ ((cf.prec cg).queries o (Nat.pair a m)).get hm, o i = o' i), (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) by
-      convert this n.unpair.1 n.unpair.2
-      simp
-    intro a m hm ho'
+    have := n.pair_unpair
+    generalize n.unpair.1 = a, n.unpair.2 = m at this
+    subst this
     induction m with
     | zero =>
       simp at ho' ⊢
       refine IHcf ?_ ho'
-      simp at hm ⊢
-      exact hm
+      simp at hn ⊢
+      exact hn
     | succ m IHm =>
-      simp [evalq_prec_succ] at hm ⊢
+      simp [evalq_prec_succ] at hn ⊢
       simp [queries_prec_succ] at ho'
-      obtain ⟨y, k, ⟨s, hs⟩, ⟨t, ht⟩⟩ := hm
+      obtain ⟨y, k, ⟨s, hs⟩, ⟨t, ht⟩⟩ := hn
       have h1 : (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).evalq o' (Nat.pair a m) := by
         refine IHm hs.1 ?_
         intro i hi
@@ -450,16 +441,13 @@ theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n �
         exact .inr hi
       rw [← h1, Part.bind_of_mem hs, Part.bind_of_mem hs, ← h2]
   | rfind' cf IHcf =>
-    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
-    revert hn ho'
-    suffices ∀ a m (hm : Nat.pair a m ∈ (cf.rfind'.evalq o).Dom) (ho' : ∀ i ∈ (cf.rfind'.queries o (Nat.pair a m)).get hm, o i = o' i), cf.rfind'.evalq o (Nat.pair a m) = cf.rfind'.evalq o' (Nat.pair a m) by
-      convert this n.unpair.1 n.unpair.2
-      simp only [Nat.pair_unpair]
-    intro a m hm ho'
-    simp [evalq] at hm ⊢
+    have := n.pair_unpair
+    generalize n.unpair.1 = a, n.unpair.2 = m at this
+    subst this
+    simp [evalq] at hn ⊢
     apply congr_arg
-    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hm
-    have hp : p ∈ _ := Part.get_mem hm
+    let p := Nat.rfindFold (fun n => Part.map (Prod.map (fun x => decide (x = 0)) id) (cf.evalq o (Nat.pair a (n + m)))) (· ∪ ·) ∅ |>.get hn
+    have hp : p ∈ _ := Part.get_mem hn
     have hn := Nat.rfindFold_dom hp
     apply Nat.rfindFold_eq_of_bounded_eq hp
     refine fun k hk => congr_arg _ (IHcf (hn k hk) (fun i hi => ho' i ?_))
