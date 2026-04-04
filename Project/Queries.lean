@@ -311,23 +311,19 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
     simp [evalq, eval, ← IHcf, ← IHcg, Part.bind_some_eq_map]
     rfl
   | prec cf cg IHcf IHcg =>
-    -- TODO: Is there a better way to replace `n` by `Nat.pair a m`.
-    suffices ∀ a m, Prod.fst <$> (cf.prec cg).evalq o (Nat.pair a m) = (cf.prec cg).eval o (Nat.pair a m) by
-      convert this n.unpair.1 n.unpair.2 <;> simp
-    intro a m
+    simp [evalq, eval]
+    generalize n.unpair.1 = a, n.unpair.2 = m
     induction m with
-    | zero =>
-      simp
-      apply IHcf
+    | zero => exact IHcf _
     | succ m IHm =>
-      simp [eval_prec_succ, evalq_prec_succ, Part.bind_some_eq_map, ← IHm]
+      simp [Part.bind_some_eq_map, ← IHm]
       congr
       funext p
-      apply IHcg
+      exact IHcg _
   | rfind' cf IHcf =>
     simp [evalq, eval]
     generalize n.unpair.1 = a, n.unpair.2 = m
-    have : (fun n => Part.map (fun x => decide (x = 0)) (Prod.fst <$> cf.evalq o (Nat.pair a (n+m)))) = (fun n => Part.map (fun x => decide (x = 0)) (cf.eval o (Nat.pair a (n + m)))) := by
+    have : (fun n => Part.map (fun x => decide (x = 0)) (Prod.fst <$> cf.evalq o (Nat.pair a (n + m)))) = (fun n => Part.map (fun x => decide (x = 0)) (cf.eval o (Nat.pair a (n + m)))) := by
       funext n
       rw [IHcf]
     rw [← this, Part.map_map, Prod.map_fst', ← Part.map_map, ← Part.map_eq_map, ← Part.map_eq_map, Nat.rfindFold_fst_eq_rfind]
