@@ -2,6 +2,21 @@ module
 
 public import Project.OracleCode
 
+/-!
+# Oracle Query Tracking.
+
+## Main Definitions
+
+* `RecursiveIn.Code.evalq`
+* `RecursiveIn.Code.queries`
+
+## Main Results
+
+* `RecursiveIn.Code.evalq_fst`
+* `RecursiveIn.Code.queries_subset_oracle_dom`
+* `RecursiveIn.Code.evalq_eq_of_oracle_eq`
+-/
+
 @[expose] public section
 
 namespace Part
@@ -323,6 +338,20 @@ theorem evalq_fst (c : Code) (o : ℕ →. ℕ) (n : ℕ) : Prod.fst <$> c.evalq
     simp [eval, evalq]
     rw [← this, Part.map_map, Prod.map_fst', ← Part.map_map, ← Part.map_eq_map, ← Part.map_eq_map, Nat.rfindFold_fst_eq_rfind]
     rfl
+
+/--
+`evalq` halts on `n` iff `eval` halts on `n`.
+-/
+theorem evalq_dom_iff (c : Code) (o : ℕ →. ℕ) (n : ℕ) : (c.evalq o n).Dom ↔ (c.eval o n).Dom := by
+  rw [← evalq_fst]
+  rfl
+
+/--
+The domain of `evalq` equals the domain of `eval`.
+-/
+theorem evalq_dom_eq (c : Code) (o : ℕ →. ℕ) : (c.evalq o).Dom = (c.eval o).Dom := by
+  ext n
+  apply evalq_dom_iff
 
 /--
 If `evalq c o n` halts, then the set of oracle queries made is contained in the domain of `o`.
