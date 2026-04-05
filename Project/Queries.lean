@@ -88,8 +88,8 @@ lemma rfindFold_unfold {α β} {f : ℕ →. Bool × α} {g : α → β → β} 
   · rw [rfindFold, rfind_zero_none _ (by simp [h0]), h0]
     simp
   unfold rfindFold
-  rw [rfind_unfold, hp, map_eq_map, map_some, bind_some, bind_some]
-  simp only
+  rw [rfind_unfold, hp]
+  simp
   rcases p.1 with - | -
   · simp [fold_succ', -fold_succ, hp]
     rfl
@@ -101,20 +101,17 @@ The first coordinate of `rfindFold` is the same as evaluating `rfind` over the f
 lemma rfindFold_fst_eq_rfind {α β} {f : ℕ →. Bool × α} {g : α → β → β} {init} : Prod.fst <$> rfindFold f g init = rfind (Prod.fst <$> f ·) := by
   rcases eq_none_or_eq_some (rfind (Prod.fst <$> f ·)) with h | ⟨n, hn⟩
   · simp_all [rfindFold]
-  · simp [rfindFold, hn, -map_eq_map]
+  simp [rfindFold, hn, -map_eq_map]
+  simp
+  apply bind_const_eq_of_dom
+  have h := eq_some_iff.mp hn
+  simp at h ⊢
+  constructor
+  · apply fold_dom
+    intro k hk _
     simp
-    apply bind_const_eq_of_dom
-    have h := eq_some_iff.mp hn
-    simp at h ⊢
-    constructor
-    · apply fold_dom
-      intro k hk _
-      rw [bind_some_eq_map]
-      simp
-      rw [dom_iff_mem]
-      exact ⟨(false, (h.2 hk).choose), (h.2 hk).choose_spec⟩
-    · rw [dom_iff_mem]
-      exact ⟨(true, h.1.choose), h.1.choose_spec⟩
+    grind [dom_iff_mem]
+  · grind [dom_iff_mem]
 
 /--
 If `rfindFold f g init = (n, s)`, then `(f k).Dom` holds for every `k ≤ n`.
@@ -125,10 +122,9 @@ lemma rfindFold_dom {α β} {f : ℕ →. Bool × α} {g : α → β → β} {in
     exact mem_map _ hp
   simp at hn
   by_cases hkn : k = p.1
-  · rw [hkn]
-    exact dom_iff_mem.mpr ⟨(true, hn.1.choose), hn.1.choose_spec⟩
+  · grind [dom_iff_mem]
   · have := hn.2 (hk.lt_of_ne hkn)
-    exact dom_iff_mem.mpr ⟨(false, this.choose), this.choose_spec⟩
+    grind [dom_iff_mem]
 
 /--
 The second coordinate of `rfindFold` is the result of folding the values `(f 0).2, ..., (f n).2` using the function `g` and the initial value `init`.
@@ -192,9 +188,10 @@ lemma rfindFold_eq_of_bounded_eq {α β} {f₁ f₂ : ℕ →. Bool × α} {g : 
     apply congr_arg
     rw [rfindFold_unfold] at hp
     simp at hp
+    obtain ⟨a, ha⟩ := hp
     refine IHn ?_ (by grind)
-    convert hp.choose_spec.2
-    have := get_eq_of_mem hp.choose_spec.1 h0
+    convert ha.2
+    have := get_eq_of_mem ha.1 h0
     grind
 
 end Nat
