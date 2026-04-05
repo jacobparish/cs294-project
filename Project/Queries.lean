@@ -46,7 +46,7 @@ open Part
 /--
 A version of `fold_succ` that unfolds at the beginning, rather than at the end.
 -/
-lemma fold_succ' {α} (n : ℕ) (f : (i : ℕ) → i < n + 1 → α → α) (init : α) :
+private lemma fold_succ' {α} (n : ℕ) (f : (i : ℕ) → i < n + 1 → α → α) (init : α) :
     (n + 1).fold f init = n.fold (fun i h => f (i + 1) (succ_lt_succ h)) (f 0 n.zero_lt_succ init) := by
   induction n generalizing init with
   | zero => simp
@@ -453,3 +453,5 @@ theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n �
     exact Finset.subset_fold_union _ (Nat.lt_succ_of_le hk) hi
 
 end RecursiveIn.Code
+
+end
