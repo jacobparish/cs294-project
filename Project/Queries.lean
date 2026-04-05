@@ -198,7 +198,7 @@ end Nat
 
 namespace Finset
 
-lemma subset_fold_union {α} [DecidableEq α] {n : ℕ} (s : ∀ k < n, Finset α) {k : ℕ} (hk : k < n) : s k hk ⊆ n.fold (fun k hk t => s k hk ∪ t) ∅ := by
+private lemma subset_fold_union {α} [DecidableEq α] {n : ℕ} (s : ∀ k < n, Finset α) {k : ℕ} (hk : k < n) : s k hk ⊆ n.fold (fun k hk t => s k hk ∪ t) ∅ := by
   induction n with
   | zero => contradiction
   | succ n IHn =>
