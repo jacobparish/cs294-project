@@ -114,7 +114,13 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     let k := (c.eval (fun n => (s' : List ℕ)[n]?) t.length).get hs'_dom
     -- Step 1: g t.length = k + 1, from hg at position t.length
     have hg_val : g t.length = k + 1 := by
-      sorry
+      rw [← hg t.length (by simp [t])]
+      simp [t]
+      congr
+      funext n
+      congr
+      funext s'
+      rw [PFun.mem_dom]
     -- Step 2: c.eval ↑f t.length = Part.some k, via oracle agreement with s'
     have hdom_s' : (c.evalq (fun n => (s' : List ℕ)[n]?) t.length).Dom := by
       rw [Code.evalq_dom_iff]; exact hs'_dom
