@@ -132,7 +132,7 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     have horacle : ∀ i ∈ (c.queries (fun n => (s' : List ℕ)[n]?) t.length).get hdom_mem,
         (fun n => (s' : List ℕ)[n]?) i = (↑f : ℕ →. ℕ) i := by
       intro i hi
-      have := (Code.queries_subset_oracle_dom hdom_mem) hi
+      have := Code.queries_subset_oracle_dom hdom_mem hi
       simp at this
       simp [this]
       exact hf' i this
