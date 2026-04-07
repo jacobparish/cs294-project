@@ -109,6 +109,9 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     simp only [extend] at hf hg
     rw [dif_pos h] at hf hg
     simp at hf hg
+    have hf' : h.choose.IsPrefixOfFun f := by
+      convert hf
+      rw [PFun.mem_dom]
     let s' := h.choose
     have hs'_dom : t.length ∈ (c.eval fun n => (s' : List ℕ)[n]?).Dom := h.choose_spec.2
     let k := (c.eval (fun n => (s' : List ℕ)[n]?) t.length).get hs'_dom
@@ -128,7 +131,11 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     -- For queries i, s'[i]? = ↑f i because hf says s' is a prefix of f
     have horacle : ∀ i ∈ (c.queries (fun n => (s' : List ℕ)[n]?) t.length).get hdom_mem,
         (fun n => (s' : List ℕ)[n]?) i = (↑f : ℕ →. ℕ) i := by
-      sorry
+      intro i hi
+      have := (Code.queries_subset_oracle_dom hdom_mem) hi
+      simp at this
+      simp [this]
+      exact hf' i this
     have hevalq := Code.evalq_eq_of_oracle_eq hdom_mem horacle
     -- Transfer to eval via evalq_fst
     have heval_eq : c.eval (fun n => (s' : List ℕ)[n]?) t.length =
