@@ -539,7 +539,8 @@ theorem eval_id (n) : ∀ o, eval Code.id o n = Part.some n := by
   simp [Code.id]
 
 @[simp]
-theorem eval_curry (c o n x) : eval (curry c n) o x = eval c o (Nat.pair n x) := by simp! [Seq.seq, curry]
+theorem eval_curry (c o n x) : eval (curry c n) o x = eval c o (Nat.pair n x) := by
+  simp! [Seq.seq, curry]
 
 theorem primrec_const : Primrec Code.const :=
   (_root_.Primrec.id.nat_iterate (_root_.Primrec.const zero)
