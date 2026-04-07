@@ -1,6 +1,7 @@
 module
 
 public import Project.OracleCode
+import Project.Queries
 
 namespace List
 
@@ -108,13 +109,85 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     simp only [extend] at hf hg
     rw [dif_pos h] at hf hg
     simp at hf hg
-    sorry
+    have hf' : h.choose.IsPrefixOfFun f := by
+      convert hf
+      rw [PFun.mem_dom]
+    let s' := h.choose
+    have hs'_dom : t.length ∈ (c.eval fun n => (s' : List ℕ)[n]?).Dom := h.choose_spec.2
+    let k := (c.eval (fun n => (s' : List ℕ)[n]?) t.length).get hs'_dom
+    -- Step 1: g t.length = k + 1, from hg at position t.length
+    have hg_val : g t.length = k + 1 := by
+      rw [← hg t.length (by simp [t])]
+      simp [t]
+      congr
+      funext n
+      congr
+      funext s'
+      rw [PFun.mem_dom]
+    -- Step 2: c.eval ↑f t.length = Part.some k, via oracle agreement with s'
+    have hdom_s' : (c.evalq (fun n => (s' : List ℕ)[n]?) t.length).Dom := by
+      rw [Code.evalq_dom_iff]; exact hs'_dom
+    have hdom_mem : t.length ∈ (c.evalq (fun n => (s' : List ℕ)[n]?)).Dom := hdom_s'
+    -- For queries i, s'[i]? = ↑f i because hf says s' is a prefix of f
+    have horacle : ∀ i ∈ (c.queries (fun n => (s' : List ℕ)[n]?) t.length).get hdom_mem,
+        (fun n => (s' : List ℕ)[n]?) i = (↑f : ℕ →. ℕ) i := by
+      intro i hi
+      have := Code.queries_subset_oracle_dom hdom_mem hi
+      simp at this
+      simp [this]
+      exact hf' i this
+    have hevalq := Code.evalq_eq_of_oracle_eq hdom_mem horacle
+    -- Transfer to eval via evalq_fst
+    have heval_eq : c.eval (fun n => (s' : List ℕ)[n]?) t.length =
+        c.eval (↑f : ℕ →. ℕ) t.length := by
+      have := congr_arg (Prod.fst <$> ·) hevalq
+      simp only [Code.evalq_fst] at this; exact this
+    have hval : c.eval (↑f : ℕ →. ℕ) t.length = Part.some k := by
+      rw [← heval_eq]
+      exact Part.eq_some_iff.mpr (Part.get_mem hs'_dom)
+    -- Conclude: Part.some k ≠ Part.some (k+1)
+    intro heq
+    have heq_at := congr_fun heq t.length
+    rw [hval] at heq_at
+    simp [hg_val] at heq_at
   · -- Case 2: `|t| ∉ (c.eval f).Dom`, while `g` is total.
     simp only [extend] at hf
     rw [dif_neg h] at hf
     simp at hf
     push_neg at h
-    sorry
+    rw [ne_eq, funext_iff]
+    push_neg
+    use t.length
+    intro heq
+    -- Step 1: ↑g t.length = Part.some (g t.length) is defined, so c.eval ↑f t.length is too
+    have hdom : (c.eval (↑f : ℕ →. ℕ) t.length).Dom := by rw [heq]; simp
+    -- Step 2: switch to evalq
+    rw [← Code.evalq_dom_iff] at hdom
+    -- Step 3: collect the finite query set Q; note hdom is definitionally t.length ∈ (c.evalq ↑f).Dom
+    have hdom_mem : t.length ∈ (c.evalq (↑f : ℕ →. ℕ)).Dom := hdom
+    let Q := (c.queries (↑f : ℕ →. ℕ) t.length).get hdom_mem
+    -- Step 4: pick N large enough to cover s and all queries
+    let N := s.length + Q.sup id + 1
+    let s' := (List.range N).map f
+    -- Step 5: s <+: s', since hf says s agrees with f pointwise and s.length ≤ N
+    have hs_prefix : s <+: s' := List.prefix_iff_getElem?.mpr fun i hi => by
+      have hiN : i < N := Nat.lt_of_lt_of_le hi (by omega)
+      simp only [s', List.getElem?_map, List.getElem?_range, hiN, ↓reduceIte]
+      exact congrArg some (hf i hi).symm
+    -- Step 6: the oracle fun n => s'[n]? agrees with ↑f on every query in Q
+    have horacle : ∀ i ∈ Q, (↑f : ℕ →. ℕ) i = (fun n => (s' : List ℕ)[n]?) i := by
+      intro i hi
+      have hiN : i < N := by
+        have hle := Finset.le_sup (f := id) hi
+        simp only [id] at hle; omega
+      simp [s', hiN]
+    -- Step 7: evalq agrees on both oracles at t.length; transfer Dom to the s'-oracle
+    have hevalq := Code.evalq_eq_of_oracle_eq hdom_mem horacle
+    have hdom' : (c.evalq (fun n => (s' : List ℕ)[n]?) t.length).Dom := hevalq ▸ hdom
+    rw [Code.evalq_dom_iff] at hdom'
+    -- Step 8: contradict h
+    exact absurd hdom' (h s' hs_prefix)
+
 
 /--
 Build the sequence using `extend` twice at each step.
