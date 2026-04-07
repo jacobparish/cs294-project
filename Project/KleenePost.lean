@@ -172,7 +172,7 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     -- Step 5: s <+: s', since hf says s agrees with f pointwise and s.length ≤ N
     have hs_prefix : s <+: s' := List.prefix_iff_getElem?.mpr fun i hi => by
       have hiN : i < N := Nat.lt_of_lt_of_le hi (by omega)
-      simp only [s', List.getElem?_map, List.getElem?_range, hiN, ↓reduceIte]
+      simp only [s', List.getElem?_map, List.getElem?_range, hiN]
       exact congrArg some (hf i hi).symm
     -- Step 6: the oracle fun n => s'[n]? agrees with ↑f on every query in Q
     have horacle : ∀ i ∈ Q, (↑f : ℕ →. ℕ) i = (fun n => (s' : List ℕ)[n]?) i := by

@@ -91,7 +91,7 @@ theorem rfind' {O f} (hf : RecursiveIn O f) :
             ((fun y => (Nat.unpair y).1 + (Nat.unpair y).2) ∘ (fun y => y (Nat.unpair n).2) ∘ Nat.pair) := by
         funext x
         simp [Function.comp, Nat.unpair_pair]
-      simpa [addPair, Seq.seq, Part.bind_some_eq_map, Part.map_map, Part.map_eq_map, hfg]
+      simp [addPair, Seq.seq, Part.bind_some_eq_map, Part.map_map, Part.map_eq_map, hfg]
     simpa [Nat.unpaired, Nat.unpair_pair, Nat.pair_unpair] using hfinal
 
 /-- Code for partial recursive functions from ℕ to ℕ with an oracle.
