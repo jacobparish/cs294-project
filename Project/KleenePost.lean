@@ -1,7 +1,7 @@
 module
 
 public import Project.OracleCode
-import Project.Queries
+public import Project.Queries
 
 namespace List
 
