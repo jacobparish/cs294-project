@@ -69,25 +69,13 @@ theorem primrec₂_substPartrec : Primrec₂ substPartrec := by
 The `eval` of `c.subst c'` with oracle `o` is equal to the `eval` of `c` with oracle `c'.eval o`.
 -/
 theorem eval_subst (c c' : Code) (o : ℕ →. ℕ) : (c.subst c').eval o = c.eval (c'.eval o) := by
-  induction c with
-  | zero | succ | left | right => rfl
-  | oracle => simp [subst, eval]
-  | pair cf cg IHcf IHcg => sorry
-  | comp cf cg IHcf IHcg => sorry
-  | prec cf cg IHcf IHcg => sorry
-  | rfind' cf IHcf => sorry
+  induction c with simp [subst, eval, *]
 
 /--
 The `eval` of `c.substPartrec c'` is equal to the `eval` of `c` with oracle `c'.eval`.
 -/
 theorem eval_substPartrec (c : Code) (c' : Nat.Partrec.Code) : (c.substPartrec c').eval = c.eval c'.eval := by
-  induction c with
-  | zero | succ | left | right => rfl
-  | oracle => simp [substPartrec, eval]
-  | pair cf cg IHcf IHcg => sorry
-  | comp cf cg IHcf IHcg => sorry
-  | prec cf cg IHcf IHcg => sorry
-  | rfind' cf IHcf => sorry
+  induction c with simp [substPartrec, eval, Nat.Partrec.Code.eval, *]
 
 end RecursiveIn.Code
 
