@@ -56,6 +56,12 @@ def seq : ℕ → (List ℕ × List ℕ) × List (Option ℕ)
     extend (2 * ·) k <|
     seq k
 
+/--
+`seq` is primitive recursive.
+-/
+lemma primrec_seq : Primrec seq := by
+  sorry
+
 def p1 (x : ℕ) : Prop := ∃ k, x ∈ (seq k).1.1
 
 def p2 (x : ℕ) : Prop := ∃ k, x ∈ (seq k).1.2
