@@ -8,9 +8,9 @@ namespace REPred
 open Nat.Partrec
 
 /--
-If `p` is a nonempty RE predicate, then `p` is the range of a primitive recursive function.
+If `p : ℕ → Prop` is a nonempty RE predicate, then `p` is the range of a primitive recursive function.
 -/
-theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} (hn₀ : p n₀) : ∃ f : ℕ → ℕ, Nat.Primrec f ∧ Set.range f = p := by
+theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} (hn₀ : p n₀) : ∃ f : ℕ → ℕ, Nat.Primrec f ∧ Set.range f = setOf p := by
   simp only [REPred, Partrec, Encodable.decode, Part.coe_some, Encodable.encode, Part.bind_some,
     Code.exists_code] at hp
   obtain ⟨c, hc⟩ := hp
@@ -28,16 +28,15 @@ theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} 
     constructor
     · rintro ⟨n, rfl⟩
       simp only [Nat.unpaired]
-      generalize n.unpair.1 = k, n.unpair.2 = m
-      rcases h : c.evaln k m with - | y
+      rcases h : c.evaln n.unpair.1 n.unpair.2 with - | y
       · simpa
       apply Code.evaln_sound at h
       simp [hc] at h
       tauto
     · intro (hm : p m)
-      have := congrFun hc m
-      simp only [Part.assert_pos hm, Part.map_some, Part.eq_some_iff] at this
-      obtain ⟨k, hk⟩ := Code.evaln_complete.mp this
+      have h := congrFun hc m
+      simp only [Part.assert_pos hm, Part.map_some, Part.eq_some_iff] at h
+      obtain ⟨k, hk⟩ := Code.evaln_complete.mp h
       use Nat.pair k m
       simp [Option.mem_def.mp hk]
 
@@ -64,20 +63,36 @@ theorem Nat.re_range_partrec {f : ℕ →. ℕ} (hf : Nat.Partrec f) : REPred fu
   simp [← hc, Code.evaln_complete, ← Part.dom_iff_mem, hp, -Nat.mem_rfind]
 
 /--
-The range of a partial recursive function between `Primcodable` types is RE.
+A version of `Nat.range_primrec_of_re` for `Primcodable` types.
+-/
+theorem range_primrec_of_re {α} [Primcodable α] {p : α → Prop} (hp : REPred p) {a₀ : α} (ha₀ : p a₀) : ∃ f : ℕ → α, Primrec f ∧ Set.range f = setOf p := by
+  sorry
+
+/--
+A version of `Nat.re_range_partrec` for `Primcodable` types.
 -/
 theorem re_range_partrec {α β} [Primcodable α] [Primcodable β] {f : α →. β} (hf : Partrec f) : REPred fun b => ∃ a, b ∈ f a := by
   sorry
 
 /--
+A predicate `p : α → Prop` is RE iff `p` is empty or `p` is the range of a primitive recursive function.
+-/
+theorem re_iff_range_primrec {α} [Primcodable α] (p : α → Prop) : REPred p ↔ (∀ a, ¬ p a) ∨ ∃ f : ℕ → α, Primrec f ∧ Set.range f = setOf p := by
+  sorry
+
+/--
 A predicate `p : α → Prop` is RE iff `p` is empty or `p` is the range of a total computable function.
 -/
-theorem re_iff_range_of_computable {α} [Primcodable α] (p : α → Prop) : REPred p ↔ (∀ a, ¬ p a) ∨ ∃ f : ℕ → α, Computable f ∧ Set.range f = p := by
+theorem re_iff_range_computable {α} [Primcodable α] (p : α → Prop) : REPred p ↔ (∀ a, ¬ p a) ∨ ∃ f : ℕ → α, Computable f ∧ Set.range f = setOf p := by
   constructor
-  · intro hp
-    sorry
+  · sorry
   · rintro (hp | ⟨f, hf, rfl⟩)
     · sorry
     sorry
 
+/--
+A predicate `p : α → Prop` is RE iff `p` is the range of a partial recursive function.
+-/
+theorem re_iff_range_partrec {α} [Primcodable α] (p : α → Prop) : REPred p ↔ ∃ f : ℕ →. α, Partrec f ∧ PFun.ran f = setOf p := by
+  sorry
 end REPred
