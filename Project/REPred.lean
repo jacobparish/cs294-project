@@ -8,6 +8,19 @@ namespace REPred
 open Nat.Partrec
 
 /--
+If `p` is a nonempty RE predicate, then `p` is the range of a primitive recursive function.
+-/
+theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} (hn₀ : p n₀) : ∃ f : ℕ → ℕ, Nat.Primrec f ∧ Set.range f = p := by
+  simp only [REPred, Partrec, Encodable.decode, Part.coe_some, Encodable.encode, Part.bind_some,
+    Code.exists_code] at hp
+  obtain ⟨c, hc⟩ := hp
+  -- The primitive recursive function whose range equals the domain of `f` is the function `g` defined as follows. On input `(k, m)`, `g` checks if `c.evaln k m` is defined. If it is, it outputs `m`, and if it is not, it outputs `n₀`.
+  use Nat.unpaired fun k m => if (c.evaln k m).isSome then m else n₀
+  constructor
+  · sorry
+  · sorry
+
+/--
 The range of a partial recursive function `ℕ →. ℕ` is RE.
 -/
 theorem Nat.re_range_partrec {f : ℕ →. ℕ} (hf : Nat.Partrec f) : REPred fun b => ∃ a, b ∈ f a := by
