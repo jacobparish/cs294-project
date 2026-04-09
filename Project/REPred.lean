@@ -24,7 +24,22 @@ theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} 
           .pair (.pair .fst (.const c)) .snd
     · exact Primrec.nat_iff.mpr Nat.Primrec.right
     · exact Primrec.const n₀
-  · sorry
+  · ext m
+    constructor
+    · rintro ⟨n, rfl⟩
+      simp only [Nat.unpaired]
+      generalize n.unpair.1 = k, n.unpair.2 = m
+      rcases h : c.evaln k m with - | y
+      · simpa
+      apply Code.evaln_sound at h
+      simp [hc] at h
+      tauto
+    · intro (hm : p m)
+      have := congrFun hc m
+      simp only [Part.assert_pos hm, Part.map_some, Part.eq_some_iff] at this
+      obtain ⟨k, hk⟩ := Code.evaln_complete.mp this
+      use Nat.pair k m
+      simp [Option.mem_def.mp hk]
 
 /--
 The range of a partial recursive function `ℕ →. ℕ` is RE.
