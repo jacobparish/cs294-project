@@ -17,7 +17,13 @@ theorem Nat.range_primrec_of_re {p : ℕ → Prop} (hp : REPred p) {n₀ : ℕ} 
   -- The primitive recursive function whose range equals the domain of `f` is the function `g` defined as follows. On input `(k, m)`, `g` checks if `c.evaln k m` is defined. If it is, it outputs `m`, and if it is not, it outputs `n₀`.
   use Nat.unpaired fun k m => if (c.evaln k m).isSome then m else n₀
   constructor
-  · sorry
+  · refine Primrec.nat_iff.mp <| Primrec.ite ?_ ?_ ?_
+    · simp only [PrimrecPred, Bool.decide_eq_true, exists_const]
+      exact Primrec.option_isSome.comp <|
+        Code.primrec_evaln.comp <|
+          .pair (.pair .fst (.const c)) .snd
+    · exact Primrec.nat_iff.mpr Nat.Primrec.right
+    · exact Primrec.const n₀
   · sorry
 
 /--
