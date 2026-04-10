@@ -137,8 +137,11 @@ lemma eval_listMem (l : List ℕ) (n : ℕ) : eval (listMem l) n = (decide (n �
 `listMem` is primitive recursive.
 -/
 lemma primrec_listMem : Primrec listMem := by
-  -- TODO: This will be crucial to reasoning about the evaluation of oracles using partial information. We will need to call `c.substPartrec (listMem l)` to computably replace the oracle in code `c` with the oracle `l`.
-  sorry
+  convert Primrec.list_rec .id (.const zero) (?_ : Primrec₂ fun _ (x, xs, IH) => Code.max.comp <| pair (Code.eq.curry x) IH) with l
+  · induction l with simp [listMem, *]
+  exact (primrec₂_comp.comp (.const _) .id).comp <|
+    primrec₂_pair.comp (primrec₂_curry.comp (.const _) (.comp .fst .snd)) <|
+      .comp .snd (.comp .snd .snd)
 
 end
 end Nat.Partrec.Code
