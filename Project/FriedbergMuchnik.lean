@@ -39,13 +39,13 @@ The roles of the parameters are as follows:
 * `p = (p.1, p.2)` : The pair of finite sets (represented as lists) enumerated so far. In this stage, we are trying to ensure that `p.1` is not computable relative to `p.2`.
 * `k` : A bound on (1) the number of codes to check at this stage, (2) the number of witnesses to check at this stage, and (3) the number of steps to run `evaln` at this stage.
 * `f` : The index from a code into the restraint list `r`.
-* `r` : The list of restraints. `r[f e] = none` (or the index is out of bounds) if requirement `Rₑ` is not currently satisfied. `r[f e] = some k` if requirement `Rₑ` has been satisfied at some earlier stage, and has not been injured since then.
+* `r` : The list of restraints. `r[f e] = none` (or the index is out of bounds) if requirement `Rₑ` is not currently satisfied. `r[f e] = some j'` if requirement `Rₑ` has been satisfied at some earlier stage `j < k`, and has not been injured since then.
 -/
 def extend (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option ℕ) → (List ℕ × List ℕ) × List (Option ℕ) := fun (p, r) =>
   match findWitness? f k (p, r) with
   -- If no strategy needs to act, then do nothing.
   | none => (p, r)
-  -- If `Rₑ` needs to act, then add the witness to `p.1`. Also, injure all strategies `Rᵢ` for `i > f e`, and set `r [f e] = some k`.
+  -- If `Rₑ` needs to act, then add the witness to `p.1`. Also, injure all strategies `Rᵢ` for `i > f e`, and set `r[f e] = some k`.
   | some (e, y) => ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
 
 lemma extend_fst (f : ℕ → ℕ) (k : ℕ) (u : (List ℕ × List ℕ) × List (Option ℕ)) : u.1.1 ⊆ (extend f k u).1.1 := by
