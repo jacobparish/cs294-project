@@ -89,19 +89,59 @@ def seq2 (k : ℕ) := (seq k).1.2
 `seq1` is monotone.
 -/
 lemma seq1_mono (k : ℕ) : seq1 k ⊆ seq1 (k + 1) := by
-  sorry
+  -- seq1 (k+1) reduces to (extend (2*·+1) k ...).1.2  via Prod.map_fst + Prod.fst_swap
+  -- By ← extend_snd, this equals (Prod.map .swap id (extend (2*·) k (seq k))).1.2
+  -- By Prod.map_fst + Prod.snd_swap, this is (extend (2*·) k (seq k)).1.1
+  -- Which contains (seq k).1.1 = seq1 k by extend_fst.
+  show (seq k).1.1 ⊆ (seq (k + 1)).1.1
+  simp only [seq, Prod.map_fst, Prod.fst_swap]
+  rw [← extend_snd (2 * · + 1) k]
+  simp only [Prod.map_fst, Prod.snd_swap]
+  exact extend_fst _ _ _
 
 /--
 `seq2` is monotone.
 -/
 lemma seq2_mono (k : ℕ) : seq2 k ⊆ seq2 (k + 1) := by
-  sorry
+  -- seq2 (k+1) reduces to (extend (2*·+1) k ...).1.1  via Prod.map_fst + Prod.snd_swap
+  -- By extend_fst, (seq k).1.2 ⊆ input to extend's .1.1 = (Prod.map .swap id ...).1.1
+  -- By Prod.map_fst + Prod.fst_swap, that is (extend (2*·) k (seq k)).1.2
+  -- By extend_snd reversed, that equals (seq k).1.2 = seq2 k.
+  show (seq k).1.2 ⊆ (seq (k + 1)).1.2
+  simp only [seq, Prod.map_fst, Prod.snd_swap]
+  apply List.Subset.trans _ (extend_fst (2 * · + 1) k _)
+  simp only [Prod.map_fst, Prod.fst_swap]
+  rw [← extend_snd (2 * ·) k]
+  exact List.Subset.refl _
 
 /--
 `seq` is primitive recursive.
 -/
 lemma primrec_seq : Primrec seq := by
-  sorry
+  -- Prod.map Prod.swap id is primrec: ((a, b), c) ↦ ((b, a), c)
+  have hswap : Primrec (Prod.map Prod.swap id :
+      (List ℕ × List ℕ) × List (Option ℕ) → (List ℕ × List ℕ) × List (Option ℕ)) :=
+    Primrec.pair
+      (Primrec.pair (Primrec.snd.comp Primrec.fst) (Primrec.fst.comp Primrec.fst))
+      Primrec.snd
+  have hf1 : Primrec (fun x => 2 * x) :=
+    Primrec.nat_mul.comp (Primrec.const 2) Primrec.id
+  have hf2 : Primrec (fun x => 2 * x + 1) :=
+    Primrec.succ.comp (Primrec.nat_mul.comp (Primrec.const 2) Primrec.id)
+  -- step: (k, prev) ↦ Prod.map .swap id (extend (2*·+1) k (Prod.map .swap id (extend (2*·) k prev)))
+  have hstep : Primrec₂ (fun k x =>
+      Prod.map Prod.swap id (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k x)))) :=
+    hswap.comp
+      ((primrec₂_extend hf2).comp Primrec.fst
+        (hswap.comp ((primrec₂_extend hf1).comp Primrec.fst Primrec.snd)))
+  exact (Primrec.nat_rec₁ (([], []), []) hstep).of_eq fun n => by
+    induction n with
+    | zero => simp [seq]
+    | succ n ih =>
+      have hseq : seq (n + 1) = Prod.map Prod.swap id
+          (extend (2 * · + 1) n (Prod.map Prod.swap id (extend (2 * ·) n (seq n)))) := by
+        simp [seq]
+      rw [hseq, ← ih]
 
 /--
 Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => (seq k).2.getI i` is eventually constant.
@@ -121,13 +161,43 @@ def p2 (x : ℕ) : Prop := ∃ k, x ∈ seq2 k
 The predicate `p1` is RE.
 -/
 lemma re_p1 : REPred p1 := by
-  sorry
+  -- seq1 k = (seq k).1.1 is primitive recursive
+  have primrec_seq1 : Primrec seq1 :=
+    Primrec.fst.comp (Primrec.fst.comp primrec_seq)
+  -- x ∈ L is a primitive recursive relation in (L, x)
+  have hmem_rel : PrimrecRel (fun (L : List ℕ) (b : ℕ) => b ∈ L) :=
+    Primrec.eq.exists_mem_list.of_eq fun L b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
+  -- x ∈ seq1 k is primitive recursive in (x, k)
+  have hmem_pred : PrimrecPred (fun q : ℕ × ℕ => q.1 ∈ seq1 q.2) :=
+    hmem_rel.comp (primrec_seq1.comp Primrec.snd) Primrec.fst
+  -- fun x k => Part.some (decide (x ∈ seq1 k)) is partrec
+  have hpartrec : Partrec₂ (fun x k => (Part.some (decide (x ∈ seq1 k)) : Part Bool)) :=
+    hmem_pred.decide.to₂.to_comp.partrec₂
+  -- Nat.rfind (fun k => Part.some (decide (x ∈ seq1 k))) has domain p1 x
+  refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
+  simp only [Nat.rfind_dom, Part.mem_some_iff, p1]
+  constructor
+  · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
+  · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
 
 /--
 The predicate `p2` is RE.
 -/
 lemma re_p2 : REPred p2 := by
-  sorry
+  -- seq2 k = (seq k).1.2 is primitive recursive
+  have primrec_seq2 : Primrec seq2 :=
+    Primrec.snd.comp (Primrec.fst.comp primrec_seq)
+  have hmem_rel : PrimrecRel (fun (L : List ℕ) (b : ℕ) => b ∈ L) :=
+    Primrec.eq.exists_mem_list.of_eq fun L b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
+  have hmem_pred : PrimrecPred (fun q : ℕ × ℕ => q.1 ∈ seq2 q.2) :=
+    hmem_rel.comp (primrec_seq2.comp Primrec.snd) Primrec.fst
+  have hpartrec : Partrec₂ (fun x k => (Part.some (decide (x ∈ seq2 k)) : Part Bool)) :=
+    hmem_pred.decide.to₂.to_comp.partrec₂
+  refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
+  simp only [Nat.rfind_dom, Part.mem_some_iff, p2]
+  constructor
+  · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
+  · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
 
 /--
 Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
