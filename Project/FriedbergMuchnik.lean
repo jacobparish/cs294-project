@@ -4,6 +4,7 @@ public import Mathlib.Computability.Halting
 public import Project.OracleCode
 public import Project.Queries
 public import Project.Substitute
+public import Project.PartrecCode
 
 namespace Computability
 
