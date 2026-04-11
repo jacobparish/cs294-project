@@ -235,7 +235,7 @@ def ofPred {α} (p : α → Prop) [∀ a, Decidable (p a)] : α → ℕ :=
 
 open Classical in
 /--
-If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x1` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
 -/
 lemma res_none_even {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = none)
     : ∃ x, ¬ p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x ≠ 0
@@ -253,7 +253,7 @@ lemma res_none_odd {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = none)
 
 open Classical in
 /--
-If `res k (2 * e)` is eventually `some j`, then there is some `x` such that `p1 x1` holds, while `e.eval p2 x = 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+If `res k (2 * e)` is eventually `some j`, then there is some `x` such that `p1 x` holds, while `e.eval p2 x = 0`. Thus `e` does not compute `p1` using the oracle `p2`.
 -/
 lemma res_some_even {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = some j)
     : ∃ x, p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x = 0 :=
