@@ -85,6 +85,10 @@ def seq1 (k : ℕ) := (seq k).1.1
 
 def seq2 (k : ℕ) := (seq k).1.2
 
+def p1 (x : ℕ) : Prop := ∃ k, x ∈ seq1 k
+
+def p2 (x : ℕ) : Prop := ∃ k, x ∈ seq2 k
+
 /--
 The restraint table. `res k n = some j` if the requirement corresponding to `n` was satisfied at an earlier stage `j < k`, and not injured since then.
 -/
@@ -147,10 +151,6 @@ lemma primrec_seq : Primrec seq := by
           (extend (2 * · + 1) n (Prod.map Prod.swap id (extend (2 * ·) n (seq n)))) := by
         simp [seq]
       rw [hseq, ← ih]
-
-def p1 (x : ℕ) : Prop := ∃ k, x ∈ seq1 k
-
-def p2 (x : ℕ) : Prop := ∃ k, x ∈ seq2 k
 
 /--
 The predicate `p1` is RE.
@@ -232,6 +232,40 @@ Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
 -/
 def ofPred {α} (p : α → Prop) [∀ a, Decidable (p a)] : α → ℕ :=
   fun a => (decide (p a)).toNat
+
+open Classical in
+/--
+If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x1` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+-/
+lemma res_none_even {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = none)
+    : ∃ x, ¬ p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x ≠ 0
+    := by
+  sorry
+
+open Classical in
+/--
+See `res_none_even`.
+-/
+lemma res_none_odd {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = none)
+    : ∃ x, ¬ p2 x ∧ (Denumerable.ofNat Code e).eval (ofPred p1) x ≠ 0
+    := by
+  sorry
+
+open Classical in
+/--
+If `res k (2 * e)` is eventually `some j`, then there is some `x` such that `p1 x1` holds, while `e.eval p2 x = 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+-/
+lemma res_some_even {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = some j)
+    : ∃ x, p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x = 0 :=
+  sorry
+
+open Classical in
+/--
+See `res_some_even`.
+-/
+lemma res_some_odd {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = some j)
+    : ∃ x, p2 x ∧ (Denumerable.ofNat Code e).eval (ofPred p1) x = 0 :=
+  sorry
 
 open Classical in
 /--
