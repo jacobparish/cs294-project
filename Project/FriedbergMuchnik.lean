@@ -86,6 +86,11 @@ def seq1 (k : ℕ) := (seq k).1.1
 def seq2 (k : ℕ) := (seq k).1.2
 
 /--
+The restraint table. `res k n = some j` if the requirement corresponding to `n` was satisfied at an earlier stage `j < k`, and not injured since then.
+-/
+def res (k : ℕ) (n : ℕ) : Option ℕ := (seq k).2.getI n
+
+/--
 `seq1` is monotone.
 -/
 lemma seq1_mono (k : ℕ) : seq1 k ⊆ seq1 (k + 1) := by
@@ -143,16 +148,6 @@ lemma primrec_seq : Primrec seq := by
         simp [seq]
       rw [hseq, ← ih]
 
-/--
-Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => (seq k).2.getI i` is eventually constant.
--/
-theorem finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, (seq k).2.getI i = o := by
-  induction n with
-  | zero => simp
-  | succ n IH =>
-    obtain ⟨k₀, hk₀⟩ := IH
-    sorry
-
 def p1 (x : ℕ) : Prop := ∃ k, x ∈ seq1 k
 
 def p2 (x : ℕ) : Prop := ∃ k, x ∈ seq2 k
@@ -198,6 +193,39 @@ lemma re_p2 : REPred p2 := by
   constructor
   · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
   · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
+
+/--
+Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => res k i` is eventually constant.
+-/
+lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res k i = o := by
+  induction n with
+  | zero => simp
+  | succ n IH =>
+    obtain ⟨k₀, hk₀⟩ := IH
+    -- Reduce to finding a `k₁ ≥ k₀` such that `res k n` is eventually constant.
+    suffices ∃ k₁ ≥ k₀, ∃ o, ∀ k ≥ k₁, res k n = o by
+      obtain ⟨k₁, hk₁, o, ho⟩ := this
+      use k₁
+      intro i hi_lt
+      by_cases! hi_eq : i = n
+      · subst hi_eq
+        exact ⟨o, ho⟩
+      · obtain ⟨o, ho⟩ := hk₀ i (by omega)
+        use o
+        grind
+    -- The current strategy cannot be injured after step `k₀`, so the value changes at most one more time.
+    -- If for every `k ≥ k₀` the value is `none`, then we conclude immediately.
+    by_cases! h : ∀ k ≥ k₀, res k n = none
+    · exact ⟨k₀, le_refl k₀, none, h⟩
+    -- Otherwise, we find a `k₁ ≥ k₀` where the value is `some j`, and we must show this value persists forever.
+    simp only [Option.ne_none_iff_exists'] at h
+    obtain ⟨k₁, hk₁, j, hj⟩ := h
+    use k₁, hk₁, some j
+    intro k hk
+    induction k, hk using Nat.le_induction with
+    | base => exact hj
+    | succ k hk IH =>
+      sorry
 
 /--
 Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
