@@ -55,15 +55,62 @@ def substPartrec (c : Code) (c' : Nat.Partrec.Code) : Nat.Partrec.Code := match 
 `subst` is primitive recursive.
 -/
 theorem primrec₂_subst : Primrec₂ subst := by
-  -- TODO: will need to use `primrec_recOn`.
-  sorry
+  -- Provide implicit function arguments explicitly to avoid slow unification
+  refine (primrec_recOn (α := Code × Code) (σ := Code)
+    (pr := fun _ _ _ hf hg => pair hf hg)
+    (co := fun _ _ _ hf hg => comp hf hg)
+    (pc := fun _ _ _ hf hg => prec hf hg)
+    (rf := fun _ _ hf => rfind' hf)
+    Primrec.fst
+    (Primrec.const zero) (Primrec.const succ) (Primrec.const left) (Primrec.const right)
+    Primrec.snd
+    (primrec₂_pair.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (primrec₂_comp.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (primrec₂_prec.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (primrec_rfind'.comp (Primrec.snd.comp Primrec.snd))).of_eq ?_
+  intro ⟨c₁, c₂⟩
+  induction c₁ with
+  | zero | succ | left | right | oracle => rfl
+  | pair cf cg ihf ihg => exact congrArg₂ pair ihf ihg
+  | comp cf cg ihf ihg => exact congrArg₂ comp ihf ihg
+  | prec cf cg ihf ihg => exact congrArg₂ prec ihf ihg
+  | rfind' cf ihf => exact congrArg rfind' ihf
 
 /--
 `substPartrec` is primitive recursive.
 -/
 theorem primrec₂_substPartrec : Primrec₂ substPartrec := by
-  -- TODO: will need to use `primrec_recOn`.
-  sorry
+  refine (primrec_recOn (α := Code × Nat.Partrec.Code) (σ := Nat.Partrec.Code)
+    (pr := fun _ _ _ hf hg => Nat.Partrec.Code.pair hf hg)
+    (co := fun _ _ _ hf hg => Nat.Partrec.Code.comp hf hg)
+    (pc := fun _ _ _ hf hg => Nat.Partrec.Code.prec hf hg)
+    (rf := fun _ _ hf => Nat.Partrec.Code.rfind' hf)
+    Primrec.fst
+    (Primrec.const .zero) (Primrec.const .succ) (Primrec.const .left) (Primrec.const .right)
+    Primrec.snd
+    (Nat.Partrec.Code.primrec₂_pair.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (Nat.Partrec.Code.primrec₂_comp.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (Nat.Partrec.Code.primrec₂_prec.comp
+      (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
+      (Primrec.snd.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd))))
+    (Nat.Partrec.Code.primrec_rfind'.comp (Primrec.snd.comp Primrec.snd))).of_eq ?_
+  intro ⟨c₁, c₂⟩
+  induction c₁ with
+  | zero | succ | left | right | oracle => rfl
+  | pair cf cg ihf ihg => exact congrArg₂ Nat.Partrec.Code.pair ihf ihg
+  | comp cf cg ihf ihg => exact congrArg₂ Nat.Partrec.Code.comp ihf ihg
+  | prec cf cg ihf ihg => exact congrArg₂ Nat.Partrec.Code.prec ihf ihg
+  | rfind' cf ihf => exact congrArg Nat.Partrec.Code.rfind' ihf
 
 /--
 The `eval` of `c.subst c'` with oracle `o` is equal to the `eval` of `c` with oracle `c'.eval o`.
