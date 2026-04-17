@@ -103,7 +103,6 @@ lemma eval_swap : eval Code.swap = Nat.unpaired (Function.swap Nat.pair) := by
 
 @[simp]
 lemma eval_ite {c ctrue cfalse : Code} {n} : eval (c.ite ctrue cfalse) n = (c.eval n).bind fun x => if x ≠ 0 then ctrue.eval n else cfalse.eval n := by
-  simp [Code.ite, eval]
   sorry
 
 @[simp]
@@ -114,20 +113,33 @@ lemma eval_le : eval Code.le = Nat.unpaired fun x y => (decide (x ≤ y)).toNat 
 @[simp]
 lemma eval_min : eval Code.min = Nat.unpaired Nat.min := by
   funext n
-  simp [Code.min, eval]
-  sorry
+  by_cases h : n.unpair.1 ≤ n.unpair.2
+  · simp [Code.min, eval, h]
+  · simp [Code.min, eval, h, le_of_not_ge h]
 
 @[simp]
 lemma eval_max : eval Code.max = Nat.unpaired Nat.max := by
   funext n
-  simp [Code.max, eval]
-  sorry
+  by_cases h : n.unpair.1 ≤ n.unpair.2
+  · simp [Code.max, eval, h]
+  · simp [Code.max, eval, h, le_of_not_ge h]
 
 @[simp]
 lemma eval_eq : eval Code.eq = Nat.unpaired fun x y => (decide (x = y)).toNat := by
   funext n
-  simp [Code.eq, eval, Seq.seq]
-  sorry
+  by_cases hxy : n.unpair.1 ≤ n.unpair.2
+  · by_cases hyx : n.unpair.2 ≤ n.unpair.1
+    · have h : n.unpair.1 = n.unpair.2 := le_antisymm hxy hyx
+      simp [Code.eq, eval, Seq.seq, h]
+    · have h : n.unpair.1 ≠ n.unpair.2 := by
+        intro h
+        exact hyx (h ▸ le_rfl)
+      simp [Code.eq, eval, Seq.seq, hyx, h]
+  · have hyx : n.unpair.2 ≤ n.unpair.1 := le_of_not_ge hxy
+    have h : n.unpair.1 ≠ n.unpair.2 := by
+      intro h
+      exact hxy (h ▸ le_rfl)
+    simp [Code.eq, eval, Seq.seq, hxy, hyx, h]
 
 end
 
