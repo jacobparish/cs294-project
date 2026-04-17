@@ -68,13 +68,33 @@ lemma eval_pred : eval Code.pred = Nat.pred := by
 
 @[simp]
 lemma eval_add : eval Code.add = Nat.unpaired Nat.add := by
-  simp [Code.add, eval]
-  sorry
+  suffices h : ∀ a m, eval Code.add (Nat.pair a m) = Part.some (a + m) by
+    funext n
+    conv_lhs => rw [← n.pair_unpair]
+    rw [h]
+    rfl
+  intro a m
+  induction m with
+  | zero => simp [Code.add]
+  | succ k IH =>
+    rw [Code.add, eval_prec_succ, ← Code.add]
+    simp [IH, eval]
+    omega
 
 @[simp]
 lemma eval_sub : eval Code.sub = Nat.unpaired Nat.sub := by
-  simp [Code.sub, eval]
-  sorry
+  suffices h : ∀ a m, eval Code.sub (Nat.pair a m) = Part.some (a - m) by
+    funext n
+    conv_lhs => rw [← n.pair_unpair]
+    rw [h]
+    rfl
+  intro a m
+  induction m with
+  | zero => simp [Code.sub]
+  | succ k IH =>
+    rw [Code.sub, eval_prec_succ, ← Code.sub]
+    simp [IH, eval, eval_pred]
+    omega
 
 @[simp]
 lemma eval_swap : eval Code.swap = Nat.unpaired (Function.swap Nat.pair) := by
