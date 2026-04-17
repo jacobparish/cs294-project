@@ -16,7 +16,7 @@ section
 /--
 A code which evaluates to `Nat.pred`.
 -/
-def pred : Code := prec zero (left.comp right)
+def pred : Code := (prec zero (left.comp right)).comp (pair zero Code.id)
 
 /--
 A code which evaluates to `Nat.add`.
