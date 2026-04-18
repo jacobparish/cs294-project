@@ -8,7 +8,7 @@ public import Project.PartrecCode
 
 namespace Computability
 
-open RecursiveIn
+open RecursiveIn Denumerable
 
 -- TODO: Why are the following instances not in mathlib?
 
@@ -31,7 +31,7 @@ def findWitness? (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (O
     -- (3) `r[i] < x` for every `i < f e`.
     (r.getI (f e)).isNone
       ∧ x ∉ p.1
-      ∧ 0 ∈ ((Denumerable.ofNat Code e).substPartrec (.listMem p.2)).evaln k x
+      ∧ 0 ∈ ((ofNat Code e).substPartrec (.listMem p.2)).evaln k x
       ∧ ∀ i < f e, r.getI i < x
 
 /--
@@ -238,16 +238,17 @@ open Classical in
 If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
 -/
 lemma res_none_even {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = none)
-    : ∃ x, ¬ p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x ≠ 0
+    : ∃ x, ¬ p1 x ∧ (ofNat Code e).eval (ofPred p2) x ≠ 0
     := by
   sorry
 
 open Classical in
 /--
 See `res_none_even`.
+TODO: can we do without so much duplication for the even/odd cases?
 -/
 lemma res_none_odd {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = none)
-    : ∃ x, ¬ p2 x ∧ (Denumerable.ofNat Code e).eval (ofPred p1) x ≠ 0
+    : ∃ x, ¬ p2 x ∧ (ofNat Code e).eval (ofPred p1) x ≠ 0
     := by
   sorry
 
@@ -256,15 +257,16 @@ open Classical in
 If `res k (2 * e)` is eventually `some j`, then there is some `x` such that `p1 x` holds, while `e.eval p2 x = 0`. Thus `e` does not compute `p1` using the oracle `p2`.
 -/
 lemma res_some_even {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = some j)
-    : ∃ x, p1 x ∧ (Denumerable.ofNat Code e).eval (ofPred p2) x = 0 :=
+    : ∃ x, p1 x ∧ (ofNat Code e).eval (ofPred p2) x = 0 :=
   sorry
 
 open Classical in
 /--
 See `res_some_even`.
+TODO: can we do without so much duplication for the even/odd cases?
 -/
 lemma res_some_odd {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = some j)
-    : ∃ x, p2 x ∧ (Denumerable.ofNat Code e).eval (ofPred p1) x = 0 :=
+    : ∃ x, p2 x ∧ (ofNat Code e).eval (ofPred p1) x = 0 :=
   sorry
 
 open Classical in
@@ -278,9 +280,9 @@ theorem exists_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPre
   · -- Goal: eval c (↑(ofPred p2)) ≠ ↑(ofPred p1)
     intro heq
     let e := Encodable.encode c
-    have hce : Denumerable.ofNat Code e = c := Denumerable.ofNat_encode c
+    have hce : ofNat Code e = c := ofNat_encode c
     -- (0 : Part ℕ) = pure 0 = Part.some 0 (via additive version of Part.instOne)
-    have hzero : (0 : Part ℕ) = Part.some 0 := Part.pure_eq_some 0
+    have hzero : (0 : Part ℕ) = Part.some 0 := rfl
     obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 1)
     obtain ⟨o, ho⟩ := hk₀ (2 * e) (Nat.lt_succ_self _)
     rcases o with _ | j
@@ -298,8 +300,8 @@ theorem exists_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPre
   · -- Symmetric argument for the other direction
     intro heq
     let e := Encodable.encode c
-    have hce : Denumerable.ofNat Code e = c := Denumerable.ofNat_encode c
-    have hzero : (0 : Part ℕ) = Part.some 0 := Part.pure_eq_some 0
+    have hce : ofNat Code e = c := ofNat_encode c
+    have hzero : (0 : Part ℕ) = Part.some 0 := rfl
     obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 2)
     obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) (by omega)
     rcases o with _ | j
