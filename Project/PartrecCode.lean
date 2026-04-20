@@ -62,9 +62,23 @@ protected def eq : Code := Code.min.comp <| pair Code.le (Code.le.comp Code.swap
 
 @[simp]
 lemma eval_pred : eval Code.pred = Nat.pred := by
+  have aux : ∀ m, eval (prec zero (left.comp right)) (Nat.pair 0 m) = Part.some (Nat.pred m) := by
+    intro m
+    induction m with
+    | zero => rw [eval_prec_zero]; rfl
+    | succ k IH =>
+      rw [eval_prec_succ, IH]
+      simp [eval]
   funext n
-  simp [Code.pred, eval]
-  sorry
+  have h0 : eval zero n = Part.some 0 := rfl
+  have hpair : eval (pair zero Code.id) n = Part.some (Nat.pair 0 n) := by
+    show Nat.pair <$> eval zero n <*> eval Code.id n = Part.some (Nat.pair 0 n)
+    rw [h0, eval_id]
+    simp [Seq.seq]
+  show eval ((prec zero (left.comp right)).comp (pair zero Code.id)) n = Part.some (Nat.pred n)
+  change eval (pair zero Code.id) n >>= eval (prec zero (left.comp right)) = _
+  rw [hpair]
+  simp [aux n]
 
 @[simp]
 lemma eval_add : eval Code.add = Nat.unpaired Nat.add := by
