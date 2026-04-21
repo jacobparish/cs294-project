@@ -38,7 +38,7 @@ Given codes `c`, `ctrue`, `cfalse`, `c.ite ctrue cfalse` evaluates to `if c.eval
 -/
 protected def ite : Code → Code → Code → Code :=
   fun c ctrue cfalse =>
-    (prec (cfalse.comp left) (ctrue.comp left)).comp (pair Code.id c)
+    (prec cfalse (ctrue.comp left)).comp (pair Code.id c)
 
 /--
 A code which evaluates to the `≤` relation.
