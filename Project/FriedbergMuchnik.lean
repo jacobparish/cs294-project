@@ -659,44 +659,33 @@ theorem exists_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPre
   use p1, p2, re_p1, re_p2
   simp only [Code.exists_code, not_exists]
   refine ⟨fun c => ?_, fun c => ?_⟩
-  · -- Goal: eval c (↑(ofPred p2)) ≠ ↑(ofPred p1)
-    intro heq
+  · -- Goal: eval c (ofPred p2) ≠ ofPred p1
+    apply Function.ne_iff.mpr
     let e := Encodable.encode c
     have hce : ofNat Code e = c := ofNat_encode c
-    -- (0 : Part ℕ) = pure 0 = Part.some 0 (via additive version of Part.instOne)
-    have hzero : (0 : Part ℕ) = Part.some 0 := rfl
     obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 1)
     obtain ⟨o, ho⟩ := hk₀ (2 * e) (Nat.lt_succ_self _)
-    rcases o with _ | j
+    rcases o with - | j
     · obtain ⟨x, hx_neg, hx_ne⟩ := res_none_even ho
-      apply hx_ne; rw [hce, hzero]
-      have hstep : c.eval (↑(ofPred p2)) x = (↑(ofPred p1) : ℕ →. ℕ) x := congr_fun heq x
-      rw [hstep]; simp [ofPred, hx_neg, PFun.coe_val]
+      use x
+      simpa [← hce, ofPred, hx_neg]
     · obtain ⟨x, hx_pos, hx_eq⟩ := res_some_even ho
-      have hval1 : c.eval (↑(ofPred p2)) x = Part.some 0 := by
-        rw [← hce]; rw [hzero] at hx_eq; exact hx_eq
-      have hval2 : c.eval (↑(ofPred p2)) x = Part.some 1 := by
-        rw [congr_fun heq x]; simp [ofPred, hx_pos, PFun.coe_val]
-      have : Part.some 0 = Part.some 1 := hval1.symm.trans hval2
-      exact absurd (Part.some_inj.mp this) (by omega)
+      use x
+      simp [← hce, hx_eq, ofPred, hx_pos]
+      exact fun h => Nat.zero_ne_one (Part.some_inj.mp h)
   · -- Symmetric argument for the other direction
-    intro heq
+    apply Function.ne_iff.mpr
     let e := Encodable.encode c
     have hce : ofNat Code e = c := ofNat_encode c
-    have hzero : (0 : Part ℕ) = Part.some 0 := rfl
     obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 2)
-    obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) (by omega)
-    rcases o with _ | j
+    obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) (Nat.lt_succ_self _)
+    rcases o with - | j
     · obtain ⟨x, hx_neg, hx_ne⟩ := res_none_odd ho
-      apply hx_ne; rw [hce, hzero]
-      have hstep : c.eval (↑(ofPred p1)) x = (↑(ofPred p2) : ℕ →. ℕ) x := congr_fun heq x
-      rw [hstep]; simp [ofPred, hx_neg, PFun.coe_val]
+      use x
+      simpa [← hce, ofPred, hx_neg]
     · obtain ⟨x, hx_pos, hx_eq⟩ := res_some_odd ho
-      have hval1 : c.eval (↑(ofPred p1)) x = Part.some 0 := by
-        rw [← hce]; rw [hzero] at hx_eq; exact hx_eq
-      have hval2 : c.eval (↑(ofPred p1)) x = Part.some 1 := by
-        rw [congr_fun heq x]; simp [ofPred, hx_pos, PFun.coe_val]
-      have : Part.some 0 = Part.some 1 := hval1.symm.trans hval2
-      exact absurd (Part.some_inj.mp this) (by omega)
+      use x
+      simp [← hce, hx_eq, ofPred, hx_pos]
+      exact fun h => Nat.zero_ne_one (Part.some_inj.mp h)
 
 end Computability
