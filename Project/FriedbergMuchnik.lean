@@ -103,12 +103,9 @@ private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] 
 private theorem Primrec.list_product' {α β : Type*} [Primcodable α] [Primcodable β] :
     Primrec₂ (List.product : List α → List β → List (α × β)) := by
   -- `List.product l₁ l₂ = l₁.flatMap (fun a => l₂.map (Prod.mk a))`.
-  have h : Primrec (fun (p : List α × List β) =>
-      p.1.flatMap (fun a => p.2.map (Prod.mk a))) := by
-    refine Primrec.list_flatMap Primrec.fst ?_
-    refine Primrec.list_map (Primrec.snd.comp Primrec.fst) ?_
-    exact Primrec.pair (Primrec.snd.comp Primrec.fst) Primrec.snd
-  exact h.to₂.of_eq fun _ _ => rfl
+  refine Primrec.list_flatMap .fst ?_
+  refine Primrec.list_map (.comp .snd .fst) ?_
+  exact Primrec.pair (.comp .snd .fst) .snd
 
 private theorem Primrec.list_find?' {α β : Type*} [Primcodable α] [Primcodable β]
     {f : α → List β} {p : α → β → Bool}
