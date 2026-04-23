@@ -67,17 +67,69 @@ primitive recursiveness of `List.takeI`, `List.product`, and a binary version of
 
 private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] :
     Primrec₂ (fun (l : List α) (n : ℕ) => l.takeI n) := by
-  sorry
+  -- Use the equivalent formulation: `l.takeI n = (List.range n).map (fun i => l.getI i)`.
+  have h : Primrec (fun (p : List α × ℕ) => (List.range p.2).map (fun i => p.1.getI i)) := by
+    apply Primrec.list_map (Primrec.list_range.comp Primrec.snd)
+    exact Primrec.list_getI.comp (Primrec.fst.comp Primrec.fst) Primrec.snd
+  -- Inline auxiliary lemma: `(l.takeI n).getI i = l.getI i` for `i < n`.
+  have getI_takeI : ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i := by
+    intro l n
+    induction n generalizing l with
+    | zero => intro i hi; omega
+    | succ n IH =>
+      intro i hi
+      cases l with
+      | nil =>
+        rw [List.takeI_nil, List.getI_nil]
+        have hlen : i < (List.replicate (n+1) (default : α)).length := by
+          rw [List.length_replicate]; exact hi
+        rw [List.getI_eq_getElem _ hlen]; simp
+      | cons a xs =>
+        cases i with
+        | zero => rfl
+        | succ i =>
+          show (a :: xs.takeI n).getI (i+1) = _
+          rw [List.getI_cons_succ, List.getI_cons_succ]
+          exact IH xs i (Nat.lt_of_succ_lt_succ hi)
+  refine h.to₂.of_eq fun l n => ?_
+  apply List.ext_getElem
+  · rw [List.length_map, List.length_range, List.takeI_length]
+  · intro i _ hi
+    rw [List.getElem_map, List.getElem_range]
+    rw [List.takeI_length] at hi
+    rw [← List.getI_eq_getElem _ (by rw [List.takeI_length]; exact hi)]
+    exact (getI_takeI l n i hi).symm
 
 private theorem Primrec.list_product' {α β : Type*} [Primcodable α] [Primcodable β] :
     Primrec₂ (List.product : List α → List β → List (α × β)) := by
-  sorry
+  -- `List.product l₁ l₂ = l₁.flatMap (fun a => l₂.map (Prod.mk a))`.
+  have h : Primrec (fun (p : List α × List β) =>
+      p.1.flatMap (fun a => p.2.map (Prod.mk a))) := by
+    refine Primrec.list_flatMap Primrec.fst ?_
+    refine Primrec.list_map (Primrec.snd.comp Primrec.fst) ?_
+    exact Primrec.pair (Primrec.snd.comp Primrec.fst) Primrec.snd
+  exact h.to₂.of_eq fun _ _ => rfl
 
 private theorem Primrec.list_find?' {α β : Type*} [Primcodable α] [Primcodable β]
     {f : α → List β} {p : α → β → Bool}
     (hf : Primrec f) (hp : Primrec₂ p) :
     Primrec (fun a => (f a).find? (p a)) := by
-  sorry
+  -- Use the equivalence `l.find? p = l[l.findIdx p]?`.
+  have h_idx : Primrec (fun a => (f a).findIdx (p a)) := Primrec.list_findIdx hf hp
+  have h_get : Primrec (fun a => (f a)[(f a).findIdx (p a)]?) :=
+    Primrec.list_getElem?.comp hf h_idx
+  refine h_get.of_eq fun a => ?_
+  -- Show: (f a)[(f a).findIdx (p a)]? = (f a).find? (p a)
+  generalize (f a) = l
+  generalize (p a) = q
+  clear hf hp h_idx h_get f p
+  induction l with
+  | nil => rfl
+  | cons b t IH =>
+    by_cases hb : q b
+    · simp [List.findIdx_cons, hb]
+    · simp [List.findIdx_cons, hb]
+      exact IH
 
 /--
 `findWitness?` is primitive recursive (if the indexing function is).
