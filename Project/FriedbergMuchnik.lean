@@ -7,6 +7,33 @@ public import Project.Queries
 public import Project.Substitute
 public import Project.PartrecCode
 
+
+namespace List
+
+/-
+TODO: move list helper lemmas to a different file?
+-/
+
+/--
+Helper: if `i < n`, then `(l.takeI n).getI i = l.getI i`.
+-/
+private lemma getI_takeI {α : Type*} [Inhabited α] :
+    ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i
+  | _, 0, _, hi => by omega
+  | [], n+1, i, hi => by
+    rw [List.takeI_nil, List.getI_nil]
+    have hlen : i < (List.replicate (n+1) (default : α)).length := by
+      rw [List.length_replicate]; exact hi
+    rw [List.getI_eq_getElem _ hlen]
+    simp
+  | _::_, _+1, 0, _ => rfl
+  | _::xs, n+1, i+1, hi => by
+    show (_ :: xs.takeI n).getI (i+1) = _
+    rw [List.getI_cons_succ, List.getI_cons_succ]
+    exact List.getI_takeI xs n i (Nat.lt_of_succ_lt_succ hi)
+
+end List
+
 namespace Computability
 
 open RecursiveIn Denumerable
@@ -72,25 +99,6 @@ private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] 
     apply Primrec.list_map (Primrec.list_range.comp Primrec.snd)
     exact Primrec.list_getI.comp (Primrec.fst.comp Primrec.fst) Primrec.snd
   -- Inline auxiliary lemma: `(l.takeI n).getI i = l.getI i` for `i < n`.
-  have getI_takeI : ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i := by
-    intro l n
-    induction n generalizing l with
-    | zero => intro i hi; omega
-    | succ n IH =>
-      intro i hi
-      cases l with
-      | nil =>
-        rw [List.takeI_nil, List.getI_nil]
-        have hlen : i < (List.replicate (n+1) (default : α)).length := by
-          rw [List.length_replicate]; exact hi
-        rw [List.getI_eq_getElem _ hlen]; simp
-      | cons a xs =>
-        cases i with
-        | zero => rfl
-        | succ i =>
-          show (a :: xs.takeI n).getI (i+1) = _
-          rw [List.getI_cons_succ, List.getI_cons_succ]
-          exact IH xs i (Nat.lt_of_succ_lt_succ hi)
   refine h.to₂.of_eq fun l n => ?_
   apply List.ext_getElem
   · rw [List.length_map, List.length_range, List.takeI_length]
@@ -98,7 +106,7 @@ private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] 
     rw [List.getElem_map, List.getElem_range]
     rw [List.takeI_length] at hi
     rw [← List.getI_eq_getElem _ (by rw [List.takeI_length]; exact hi)]
-    exact (getI_takeI l n i hi).symm
+    exact (List.getI_takeI l n i hi).symm
 
 private theorem Primrec.list_product' {α β : Type*} [Primcodable α] [Primcodable β] :
     Primrec₂ (List.product : List α → List β → List (α × β)) := by
@@ -321,24 +329,6 @@ lemma re_p2 : REPred p2 := by
   constructor
   · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
   · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
-
-/--
-Helper: if `i < n`, then `(l.takeI n).getI i = l.getI i`.
--/
-private lemma List.getI_takeI {α : Type*} [Inhabited α] :
-    ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i
-  | _, 0, _, hi => by omega
-  | [], n+1, i, hi => by
-    rw [List.takeI_nil, List.getI_nil]
-    have hlen : i < (List.replicate (n+1) (default : α)).length := by
-      rw [List.length_replicate]; exact hi
-    rw [List.getI_eq_getElem _ hlen]
-    simp
-  | _::_, _+1, 0, _ => rfl
-  | _::xs, n+1, i+1, hi => by
-    show (_ :: xs.takeI n).getI (i+1) = _
-    rw [List.getI_cons_succ, List.getI_cons_succ]
-    exact List.getI_takeI xs n i (Nat.lt_of_succ_lt_succ hi)
 
 /--
 Helper: values in `(extend f k u).2` at position `i < f e` are preserved from `u.2` when action occurs.
