@@ -98,7 +98,6 @@ private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] 
   have h : Primrec (fun (p : List α × ℕ) => (List.range p.2).map (fun i => p.1.getI i)) := by
     apply Primrec.list_map (Primrec.list_range.comp Primrec.snd)
     exact Primrec.list_getI.comp (Primrec.fst.comp Primrec.fst) Primrec.snd
-  -- Inline auxiliary lemma: `(l.takeI n).getI i = l.getI i` for `i < n`.
   refine h.to₂.of_eq fun l n => ?_
   apply List.ext_getElem
   · rw [List.length_map, List.length_range, List.takeI_length]
