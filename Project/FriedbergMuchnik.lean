@@ -76,11 +76,11 @@ def extend (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option 
   -- If `Rₑ` needs to act, then add the witness to `p.1`. Also, injure all strategies `Rᵢ` for `i > f e`, and set `r[f e] = some k`.
   | some (e, y) => ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
 
-lemma extend_fst (f : ℕ → ℕ) (k : ℕ) (u : (List ℕ × List ℕ) × List (Option ℕ)) : u.1.1 ⊆ (extend f k u).1.1 := by
+lemma extend_fst {f k u} : u.1.1 ⊆ (extend f k u).1.1 := by
   simp only [extend]
   cases findWitness? f k u with simp
 
-lemma extend_snd (f : ℕ → ℕ) (k : ℕ) (u : (List ℕ × List ℕ) × List (Option ℕ)) : u.1.2 = (extend f k u).1.2 := by
+lemma extend_snd {f k u} : (extend f k u).1.2 = u.1.2 := by
   simp only [extend]
   cases findWitness? f k u with rfl
 
@@ -199,9 +199,7 @@ lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
   refine (Primrec.option_casesOn hfw hnone hsome).of_eq fun a => ?_
   obtain ⟨k, p, r⟩ := a
   simp only [extend]
-  cases findWitness? f k (p, r) with
-  | none => rfl
-  | some ey => obtain ⟨e, y⟩ := ey; rfl
+  cases findWitness? f k (p, r) with rfl
 
 /--
 Having defined the `extend` function, we can build the increasing sequence of finite sets easily.
@@ -233,15 +231,7 @@ def res (k : ℕ) (n : ℕ) : Option ℕ := (seq k).2.getI n
 `seq1` is monotone.
 -/
 lemma seq1_mono (k : ℕ) : seq1 k ⊆ seq1 (k + 1) := by
-  -- seq1 (k+1) reduces to (extend (2*·+1) k ...).1.2  via Prod.map_fst + Prod.fst_swap
-  -- By ← extend_snd, this equals (Prod.map .swap id (extend (2*·) k (seq k))).1.2
-  -- By Prod.map_fst + Prod.snd_swap, this is (extend (2*·) k (seq k)).1.1
-  -- Which contains (seq k).1.1 = seq1 k by extend_fst.
-  show (seq k).1.1 ⊆ (seq (k + 1)).1.1
-  simp only [seq, Prod.map_fst, Prod.fst_swap]
-  rw [← extend_snd (2 * · + 1) k]
-  simp only [Prod.map_fst, Prod.snd_swap]
-  exact extend_fst _ _ _
+  simp [seq1, seq, extend_fst, extend_snd]
 
 /--
 `seq2` is monotone.
@@ -253,9 +243,9 @@ lemma seq2_mono (k : ℕ) : seq2 k ⊆ seq2 (k + 1) := by
   -- By extend_snd reversed, that equals (seq k).1.2 = seq2 k.
   show (seq k).1.2 ⊆ (seq (k + 1)).1.2
   simp only [seq, Prod.map_fst, Prod.snd_swap]
-  apply List.Subset.trans _ (extend_fst (2 * · + 1) k _)
+  apply List.Subset.trans _ extend_fst
   simp only [Prod.map_fst, Prod.fst_swap]
-  rw [← extend_snd (2 * ·) k]
+  rw [extend_snd]
   exact List.Subset.refl _
 
 /--
