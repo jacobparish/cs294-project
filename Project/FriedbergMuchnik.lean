@@ -361,21 +361,20 @@ lemma findWitness?_some_getI_eq_none {f : ℕ → ℕ} {k : ℕ}
 /--
 Helper: if all `some m` values in `u.2` satisfy `m ≤ k`, then the same holds for `(extend f k u).2`.
 -/
-lemma extend_snd_bound_le (f : ℕ → ℕ) (k : ℕ)
-    (u : (List ℕ × List ℕ) × List (Option ℕ))
-    (h : ∀ i m, u.2.getI i = some m → m ≤ k) :
-    ∀ i m, (extend f k u).2.getI i = some m → m ≤ k := by
-  intro i m hget
+lemma extend_snd_bound_le {f k u}
+    (i m : ℕ)
+    (h : u.2.getI i = some m → m ≤ k)
+    (hget : (extend f k u).2.getI i = some m) : m ≤ k := by
   cases hfw : findWitness? f k u with
   | none =>
     have heq : (extend f k u).2 = u.2 := by simp [extend, hfw]
     rw [heq] at hget
-    exact h i m hget
+    exact h hget
   | some p =>
     obtain ⟨e, y⟩ := p
     rcases lt_trichotomy i (f e) with hi | hi | hi
     · rw [extend_snd_getI_lt hfw hi] at hget
-      exact h i m hget
+      exact h hget
     · subst hi
       rw [extend_snd_getI_eq hfw] at hget
       have : m = k := by injection hget with h; exact h.symm
@@ -386,30 +385,15 @@ lemma extend_snd_bound_le (f : ℕ → ℕ) (k : ℕ)
 /--
 Helper: any `some m` value in `(seq k).2` satisfies `m < k`.
 -/
-lemma res_lt_stage : ∀ (k i m : ℕ), res k i = some m → m < k := by
-  intro k
-  induction k with
-  | zero =>
-    intro i m hget
-    unfold res at hget
-    simp [seq, List.getI, List.getD] at hget
+lemma res_lt_stage (k i m : ℕ) (h : res k i = some m) : m < k := by
+  induction k generalizing i m with
+  | zero => tauto
   | succ k IH =>
-    intro i m hget
     apply Nat.lt_succ_of_le
-    unfold res at hget
-    have hseq : seq (k+1) = Prod.map Prod.swap id
-        (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k (seq k)))) := by
-      simp [seq]
-    rw [hseq] at hget
-    simp only [Prod.map_snd, id_eq] at hget
-    have h_seq_le : ∀ i' m', (seq k).2.getI i' = some m' → m' ≤ k :=
-      fun i' m' h => le_of_lt (IH i' m' h)
-    have h1 := extend_snd_bound_le (2 * ·) k (seq k) h_seq_le
-    have h2 : ∀ i' m', (Prod.map Prod.swap id (extend (2 * ·) k (seq k))).2.getI i' = some m' → m' ≤ k := by
-      intro i' m' hget'
-      simp only [Prod.map_snd, id_eq] at hget'
-      exact h1 i' m' hget'
-    exact extend_snd_bound_le _ _ _ h2 i m hget
+    simp only [res, seq, Prod.map_snd, id_eq] at h
+    refine extend_snd_bound_le i m (fun h1 => ?_) h
+    refine extend_snd_bound_le i m (fun h2 => ?_) h1
+    exact (IH i m h2).le
 
 /--
 Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => res k i` is eventually constant.
