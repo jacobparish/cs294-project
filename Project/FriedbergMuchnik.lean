@@ -237,16 +237,8 @@ lemma seq1_mono (k : ℕ) : seq1 k ⊆ seq1 (k + 1) := by
 `seq2` is monotone.
 -/
 lemma seq2_mono (k : ℕ) : seq2 k ⊆ seq2 (k + 1) := by
-  -- seq2 (k+1) reduces to (extend (2*·+1) k ...).1.1  via Prod.map_fst + Prod.snd_swap
-  -- By extend_fst, (seq k).1.2 ⊆ input to extend's .1.1 = (Prod.map .swap id ...).1.1
-  -- By Prod.map_fst + Prod.fst_swap, that is (extend (2*·) k (seq k)).1.2
-  -- By extend_snd reversed, that equals (seq k).1.2 = seq2 k.
-  show (seq k).1.2 ⊆ (seq (k + 1)).1.2
-  simp only [seq, Prod.map_fst, Prod.snd_swap]
-  apply List.Subset.trans _ extend_fst
-  simp only [Prod.map_fst, Prod.fst_swap]
-  rw [extend_snd]
-  exact List.Subset.refl _
+  simp only [seq2, seq, Prod.map]
+  exact List.Subset.trans (by simp [extend_snd]) extend_fst
 
 /--
 `seq` is primitive recursive.
