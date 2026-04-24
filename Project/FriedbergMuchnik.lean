@@ -278,46 +278,44 @@ lemma primrec_seq : Primrec seq := by
       rw [hseq, ← ih]
 
 /--
-The predicate `p1` is RE.
+`seq1` is primitive recursive.
 -/
-lemma re_p1 : REPred p1 := by
-  -- seq1 k = (seq k).1.1 is primitive recursive
-  have primrec_seq1 : Primrec seq1 :=
-    Primrec.fst.comp (Primrec.fst.comp primrec_seq)
-  -- x ∈ L is a primitive recursive relation in (L, x)
-  have hmem_rel : PrimrecRel (fun (L : List ℕ) (b : ℕ) => b ∈ L) :=
-    Primrec.eq.exists_mem_list.of_eq fun L b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
-  -- x ∈ seq1 k is primitive recursive in (x, k)
-  have hmem_pred : PrimrecPred (fun q : ℕ × ℕ => q.1 ∈ seq1 q.2) :=
-    hmem_rel.comp (primrec_seq1.comp Primrec.snd) Primrec.fst
-  -- fun x k => Part.some (decide (x ∈ seq1 k)) is partrec
-  have hpartrec : Partrec₂ (fun x k => (Part.some (decide (x ∈ seq1 k)) : Part Bool)) :=
-    hmem_pred.decide.to₂.to_comp.partrec₂
-  -- Nat.rfind (fun k => Part.some (decide (x ∈ seq1 k))) has domain p1 x
+lemma primrec_seq1 : Primrec seq1 :=
+  Primrec.fst.comp (Primrec.fst.comp primrec_seq)
+
+/--
+`seq2` is primitive recursive.
+-/
+lemma primrec_seq2 : Primrec seq2 :=
+  Primrec.snd.comp (Primrec.fst.comp primrec_seq)
+
+/--
+If a sequence `s : ℕ → List ℕ` is primitive recursive, then the predicate `fun n => ∃ k, n ∈ s k` is RE.
+-/
+lemma re_of_primrec_seq {s : ℕ → List ℕ} (hs : Primrec s) : REPred (fun x => ∃ k, x ∈ s k) := by
+  -- `x ∈ l` is a primitive recursive relation in `(l, x)`.
+  have hmem_list : PrimrecRel (fun (l : List ℕ) (x : ℕ) => x ∈ l) :=
+    Primrec.eq.exists_mem_list.of_eq fun l b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
+  have hmem_seq : PrimrecRel (fun x k => x ∈ s k) :=
+    hmem_list.comp (hs.comp Primrec.snd) Primrec.fst
+  have hpartrec : Partrec₂ fun x k => Part.some (decide (x ∈ s k)) :=
+    hmem_seq.decide.to₂.to_comp.partrec₂
+  -- Nat.rfind (fun k => Part.some (decide (x ∈ s k))) has domain p1 x
   refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
-  simp only [Nat.rfind_dom, Part.mem_some_iff, p1]
+  simp only [Nat.rfind_dom, Part.mem_some_iff]
   constructor
   · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
   · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
 
 /--
+The predicate `p1` is RE.
+-/
+lemma re_p1 : REPred p1 := re_of_primrec_seq primrec_seq1
+
+/--
 The predicate `p2` is RE.
 -/
-lemma re_p2 : REPred p2 := by
-  -- seq2 k = (seq k).1.2 is primitive recursive
-  have primrec_seq2 : Primrec seq2 :=
-    Primrec.snd.comp (Primrec.fst.comp primrec_seq)
-  have hmem_rel : PrimrecRel (fun (L : List ℕ) (b : ℕ) => b ∈ L) :=
-    Primrec.eq.exists_mem_list.of_eq fun L b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
-  have hmem_pred : PrimrecPred (fun q : ℕ × ℕ => q.1 ∈ seq2 q.2) :=
-    hmem_rel.comp (primrec_seq2.comp Primrec.snd) Primrec.fst
-  have hpartrec : Partrec₂ (fun x k => (Part.some (decide (x ∈ seq2 k)) : Part Bool)) :=
-    hmem_pred.decide.to₂.to_comp.partrec₂
-  refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
-  simp only [Nat.rfind_dom, Part.mem_some_iff, p2]
-  constructor
-  · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
-  · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
+lemma re_p2 : REPred p2 := re_of_primrec_seq primrec_seq2
 
 /--
 Helper: values in `(extend f k u).2` at position `i < f e` are preserved from `u.2` when action occurs.
