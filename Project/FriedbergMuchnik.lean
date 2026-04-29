@@ -424,11 +424,9 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
       -- Show u₁.2.getI n = some j: first extend preserves position n.
       have hr₁n : u₁.2.getI n = some j := by
         rw [hu₁]
-        cases hfw : findWitness? (2 * ·) k u₀ with
-        | none => simp [extend, hfw, hr₀n]
-        | some p =>
-          obtain ⟨e, y⟩ := p
-          -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
+        rcases hfw : findWitness? (2 * ·) k u₀ with - | ⟨e, y⟩
+        · simp [extend, hfw, hr₀n]
+        · -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
           rwa [extend_snd_getI_lt hfw ?_]
           by_contra! hle
           rcases lt_or_eq_of_le hle with h2e_lt | rfl
@@ -443,9 +441,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
             -- In either sub-case, the final value at some position ≤ n is some k,
             -- contradicting no_k_in_r₀ via stability.
             have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
-            cases hfw2 : findWitness? (2 * · + 1) k u₂ with
-            | none =>
-              -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
+            rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e', y'⟩
+            · -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
               have heq : res (k+1) (2 * e) = some k := by
                 show (seq (k+1)).2.getI (2 * e) = some k
                 rw [hseq]
@@ -455,9 +452,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
               rw [heq] at hres_k1
               rw [← hres_k1] at hres_k
               exact no_k_in_r₀ (2 * e) hres_k
-            | some p' =>
-              obtain ⟨e', y'⟩ := p'
-              -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
+            · -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
               by_cases! hord : 2 * e < 2 * e' + 1
               · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
                 have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
@@ -468,10 +463,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 rw [← hres_k1] at hres_k
                 exact no_k_in_r₀ (2 * e) hres_k
               · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
-                have hstrict : 2 * e' + 1 < 2 * e := by omega
                 -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
-                have h2e'_lt_n : 2 * e' + 1 < n := by omega
-                obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) h2e'_lt_n
+                obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) (hord.trans_lt h2e_lt)
                 have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
                 have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
                 -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
@@ -488,11 +481,9 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
       -- Now show second extend preserves position n.
       have hr₂n : u₂.2.getI n = some j := hr₁n
       show (extend (2 * · + 1) k u₂).2.getI n = some j
-      cases hfw2 : findWitness? (2 * · + 1) k u₂ with
-      | none => simp [extend, hfw2, hr₂n]
-      | some p =>
-        obtain ⟨e, y⟩ := p
-        rwa [extend_snd_getI_lt hfw2 ?_]
+      rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e, y⟩
+      · simp [extend, hfw2, hr₂n]
+      · rwa [extend_snd_getI_lt hfw2 ?_]
         by_contra! hle
         rcases lt_or_eq_of_le hle with h_lt | rfl
         · -- 2e+1 < n.
