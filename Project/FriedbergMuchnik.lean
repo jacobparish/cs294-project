@@ -149,17 +149,13 @@ lemma primrec₂_findWitness? {f} (hf : Primrec f) : Primrec₂ (findWitness? f)
 `extend` is primitive recursive (if the indexing function is).
 -/
 lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
-  -- extend f k (p, r) =
-  --   match findWitness? f k (p, r) with
-  --   | none => (p, r)
-  --   | some (e, y) => ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
   set A : Type := ℕ × (List ℕ × List ℕ) × List (Option ℕ)
   -- Projections on A
   have hk : Primrec (Prod.fst : A → ℕ) := Primrec.fst
-  have hp : Primrec (fun a : A => a.2.1) := Primrec.fst.comp Primrec.snd
+  have hp : Primrec (fun a : A => a.2.1) := Primrec.fst.comp .snd
   have hp1 : Primrec (fun a : A => a.2.1.1) := Primrec.fst.comp hp
   have hp2 : Primrec (fun a : A => a.2.1.2) := Primrec.snd.comp hp
-  have hr : Primrec (fun a : A => a.2.2) := Primrec.snd.comp Primrec.snd
+  have hr : Primrec (fun a : A => a.2.2) := Primrec.snd.comp .snd
   -- findWitness? as Primrec
   have hfw : Primrec (fun a : A => findWitness? f a.1 a.2) := primrec₂_findWitness? hf
   -- The none branch: just return (p, r)
@@ -169,35 +165,18 @@ lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
   have hsome : Primrec₂ (fun (a : A) (ey : ℕ × ℕ) =>
       ((Nat.pair ey.1 ey.2 :: a.2.1.1, a.2.1.2), a.2.2.takeI (f ey.1) ++ [some a.1])) := by
     -- Projections on A × B
-    have hka : Primrec (fun ab : A × (ℕ × ℕ) => ab.1.1) := hk.comp Primrec.fst
-    have hp1a : Primrec (fun ab : A × (ℕ × ℕ) => ab.1.2.1.1) := hp1.comp Primrec.fst
-    have hp2a : Primrec (fun ab : A × (ℕ × ℕ) => ab.1.2.1.2) := hp2.comp Primrec.fst
-    have hra : Primrec (fun ab : A × (ℕ × ℕ) => ab.1.2.2) := hr.comp Primrec.fst
-    have he : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.1) := Primrec.fst.comp Primrec.snd
-    have hy : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.2) := Primrec.snd.comp Primrec.snd
-    have hpair : Primrec (fun ab : A × (ℕ × ℕ) => Nat.pair ab.2.1 ab.2.2) :=
-      Primrec₂.natPair.comp he hy
-    have hfe : Primrec (fun ab : A × (ℕ × ℕ) => f ab.2.1) := hf.comp he
-    have hcons : Primrec (fun ab : A × (ℕ × ℕ) => Nat.pair ab.2.1 ab.2.2 :: ab.1.2.1.1) :=
-      Primrec.list_cons.comp hpair hp1a
-    have hfst_out : Primrec (fun ab : A × (ℕ × ℕ) =>
-        (Nat.pair ab.2.1 ab.2.2 :: ab.1.2.1.1, ab.1.2.1.2)) :=
-      Primrec.pair hcons hp2a
-    -- takeI: use list_takeI
-    have htake : Primrec (fun ab : A × (ℕ × ℕ) => ab.1.2.2.takeI (f ab.2.1)) :=
-      Primrec.list_takeI.comp hra hfe
-    -- [some k] = some k :: []
-    have hsomek : Primrec (fun ab : A × (ℕ × ℕ) => (some ab.1.1 : Option ℕ)) :=
-      Primrec.option_some.comp hka
-    have hsing : Primrec (fun ab : A × (ℕ × ℕ) => [(some ab.1.1 : Option ℕ)]) :=
-      Primrec.list_cons.comp hsomek (Primrec.const [])
-    have hsnd_out : Primrec (fun ab : A × (ℕ × ℕ) =>
-        ab.1.2.2.takeI (f ab.2.1) ++ [(some ab.1.1 : Option ℕ)]) :=
-      Primrec.list_append.comp htake hsing
-    exact Primrec.pair hfst_out hsnd_out
+    have he : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.1) := Primrec.fst.comp .snd
+    have hy : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.2) := Primrec.snd.comp .snd
+    refine Primrec.pair ?_ ?_
+    · refine Primrec.pair ?_ (hp2.comp .fst)
+      refine Primrec.list_cons.comp ?_ (hp1.comp .fst)
+      exact Primrec₂.natPair.comp he hy
+    · refine Primrec.list_append.comp ?_ ?_
+      · exact Primrec.list_takeI.comp (hr.comp .fst) (hf.comp he)
+      · refine Primrec.list_cons.comp ?_ (.const [])
+        exact Primrec.option_some.comp (hk.comp .fst)
   -- Combine with option_casesOn
-  refine (Primrec.option_casesOn hfw hnone hsome).of_eq fun a => ?_
-  obtain ⟨k, p, r⟩ := a
+  refine (Primrec.option_casesOn hfw hnone hsome).of_eq fun ⟨k, p, r⟩ => ?_
   simp only [extend]
   cases findWitness? f k (p, r) with rfl
 
