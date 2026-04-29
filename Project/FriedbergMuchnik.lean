@@ -431,7 +431,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
           -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
           rwa [extend_snd_getI_lt hfw ?_]
           by_contra! hle
-          rcases lt_or_eq_of_le hle with h2e_lt | h2e_eq
+          rcases lt_or_eq_of_le hle with h2e_lt | rfl
           · -- 2e < n: use stability + no_k_in_r₀.
             obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
             have hres_k : res k (2 * e) = o := ho k k_ge
@@ -481,7 +481,6 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 rw [← hres'_k1] at hres'_k
                 exact absurd hres'_k (no_k_in_r₀ (2 * e' + 1))
           · -- 2e = n
-            subst h2e_eq
             -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
             have := findWitness?_some_getI_eq_none hfw
             rw [this] at hr₀n
@@ -495,7 +494,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
         obtain ⟨e, y⟩ := p
         rwa [extend_snd_getI_lt hfw2 ?_]
         by_contra! hle
-        rcases lt_or_eq_of_le hle with h_lt | h_eq
+        rcases lt_or_eq_of_le hle with h_lt | rfl
         · -- 2e+1 < n.
           obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
           have hres_k : res k (2 * e + 1) = o := ho k k_ge
@@ -506,7 +505,6 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
           rw [← hres_k1] at hres_k
           exact absurd hres_k (no_k_in_r₀ (2 * e + 1))
         · -- 2e+1 = n.
-          subst h_eq
           have := findWitness?_some_getI_eq_none hfw2
           rw [this] at hr₂n
           contradiction
