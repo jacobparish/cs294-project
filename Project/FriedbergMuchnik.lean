@@ -405,7 +405,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
       -- `k` doesn't appear as a value in `(seq k).2`.
       have no_k_in_r₀ : ∀ i, (seq k).2.getI i ≠ some k := by
         intro i hi
-        exact absurd (res_lt_stage k i k hi) (lt_irrefl _)
+        exact lt_irrefl _ (res_lt_stage k i k hi)
       -- Unfold seq (k+1).
       have hseq : seq (k+1) = Prod.map Prod.swap id
           (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k (seq k)))) :=
@@ -454,7 +454,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 exact h1
               rw [heq] at hres_k1
               rw [← hres_k1] at hres_k
-              exact absurd hres_k (no_k_in_r₀ (2 * e))
+              exact no_k_in_r₀ (2 * e) hres_k
             | some p' =>
               obtain ⟨e', y'⟩ := p'
               -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
@@ -466,7 +466,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 have heq : res (k+1) (2 * e) = some k := h3
                 rw [heq] at hres_k1
                 rw [← hres_k1] at hres_k
-                exact absurd hres_k (no_k_in_r₀ (2 * e))
+                exact no_k_in_r₀ (2 * e) hres_k
               · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
                 have hstrict : 2 * e' + 1 < 2 * e := by omega
                 -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
@@ -479,7 +479,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                   extend_snd_getI_eq hfw2
                 rw [heq] at hres'_k1
                 rw [← hres'_k1] at hres'_k
-                exact absurd hres'_k (no_k_in_r₀ (2 * e' + 1))
+                exact no_k_in_r₀ (2 * e' + 1) hres'_k
           · -- 2e = n
             -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
             have := findWitness?_some_getI_eq_none hfw
@@ -503,7 +503,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
             extend_snd_getI_eq hfw2
           rw [heq] at hres_k1
           rw [← hres_k1] at hres_k
-          exact absurd hres_k (no_k_in_r₀ (2 * e + 1))
+          exact no_k_in_r₀ (2 * e + 1) hres_k
         · -- 2e+1 = n.
           have := findWitness?_some_getI_eq_none hfw2
           rw [this] at hr₂n
