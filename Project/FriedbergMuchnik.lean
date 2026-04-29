@@ -395,31 +395,21 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
     induction k, hk using Nat.le_induction with
     | base => exact hj
     | succ k hk IH =>
-      -- Goal: res (k+1) n = some j
-      -- Strategy: no action in either extend call at stage k can occur at position ≤ n.
-      -- Hence both extends preserve position n.
-      show res (k+1) n = some j
-      -- Stability of res at positions i < n, from hk₀ at stages k and k+1.
+      -- The goal is to show `res (k+1) n = some j`. This is true because no
+      -- action in either `extend` call at stage `k` can occur at position
+      -- `≤ n`, and hence both calls preserve position `n`.
       have k_ge : k ≥ k₀ := le_trans hk₁ hk
-      have k1_ge : k+1 ≥ k₀ := by omega
-      -- `k` doesn't appear as a value in `(seq k).2`.
-      have no_k_in_r₀ : ∀ i, (seq k).2.getI i ≠ some k := by
-        intro i hi
-        exact lt_irrefl _ (res_lt_stage k i k hi)
+      have k1_ge : k+1 ≥ k₀ := Nat.le_succ_of_le k_ge
+      -- `k` doesn't appear as a value in `res k`.
+      have no_k_in_r₀ (i : ℕ) : res k i ≠ some k :=
+        fun hi => lt_irrefl k (res_lt_stage k i k hi)
       -- Unfold seq (k+1).
-      have hseq : seq (k+1) = Prod.map Prod.swap id
-          (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k (seq k)))) :=
-        rfl
-      unfold res
-      rw [hseq]
-      simp only [Prod.map_snd, id_eq]
-      -- Goal: (extend (2·+1) k (Prod.map .swap id (extend (2·) k (seq k)))).2.getI n = some j
+      have hseq : seq (k+1) = _ := seq.eq_2 k
+      simp only [res, seq, Prod.map_snd, id_eq]
       -- Introduce the two extend stages.
       set u₀ := seq k with hu₀
       set u₁ := extend (2 * ·) k u₀ with hu₁
-      have hu₁_snd : u₁.2 = (Prod.map Prod.swap id u₁).2 := rfl
       set u₂ := Prod.map Prod.swap id u₁ with hu₂
-      -- u₂.2 = u₁.2
       have hr₀n : u₀.2.getI n = some j := IH
       -- Show u₁.2.getI n = some j: first extend preserves position n.
       have hr₁n : u₁.2.getI n = some j := by
@@ -444,10 +434,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
             rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e', y'⟩
             · -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
               have heq : res (k+1) (2 * e) = some k := by
-                show (seq (k+1)).2.getI (2 * e) = some k
-                rw [hseq]
-                simp only [Prod.map_snd, id_eq]
-                simp only [extend, hfw2]
+                simp only [res, hseq, extend, hfw2]
                 exact h1
               rw [heq] at hres_k1
               rw [← hres_k1] at hres_k
@@ -455,10 +442,9 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
             · -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
               by_cases! hord : 2 * e < 2 * e' + 1
               · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
-                have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
-                  rw [extend_snd_getI_lt hfw2 hord]
+                have heq : res (k+1) (2 * e) = some k := by
+                  simp only [res, hseq, Prod.map_snd, id_eq, extend_snd_getI_lt hfw2 hord]
                   exact h1
-                have heq : res (k+1) (2 * e) = some k := h3
                 rw [heq] at hres_k1
                 rw [← hres_k1] at hres_k
                 exact no_k_in_r₀ (2 * e) hres_k
@@ -475,12 +461,10 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 exact no_k_in_r₀ (2 * e' + 1) hres'_k
           · -- 2e = n
             -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
-            have := findWitness?_some_getI_eq_none hfw
-            rw [this] at hr₀n
+            rw [findWitness?_some_getI_eq_none hfw] at hr₀n
             contradiction
       -- Now show second extend preserves position n.
       have hr₂n : u₂.2.getI n = some j := hr₁n
-      show (extend (2 * · + 1) k u₂).2.getI n = some j
       rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e, y⟩
       · simp [extend, hfw2, hr₂n]
       · rwa [extend_snd_getI_lt hfw2 ?_]
@@ -496,8 +480,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
           rw [← hres_k1] at hres_k
           exact no_k_in_r₀ (2 * e + 1) hres_k
         · -- 2e+1 = n.
-          have := findWitness?_some_getI_eq_none hfw2
-          rw [this] at hr₂n
+          rw [findWitness?_some_getI_eq_none hfw2] at hr₂n
           contradiction
 
 /--
