@@ -408,8 +408,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
         exact absurd (res_lt_stage k i k hi) (lt_irrefl _)
       -- Unfold seq (k+1).
       have hseq : seq (k+1) = Prod.map Prod.swap id
-          (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k (seq k)))) := by
-        simp [seq]
+          (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k (seq k)))) :=
+        rfl
       unfold res
       rw [hseq]
       simp only [Prod.map_snd, id_eq]
@@ -451,7 +451,6 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                   rw [hseq]
                   simp only [Prod.map_snd, id_eq]
                   simp only [extend, hfw2]
-                  change u₁.2.getI (2 * e) = some k
                   exact h1
                 rw [heq] at hres_k1
                 rw [← hres_k1] at hres_k
@@ -463,13 +462,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                 · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
                   have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
                     rw [extend_snd_getI_lt hfw2 hord]
-                    change u₁.2.getI (2 * e) = some k
                     exact h1
-                  have heq : res (k+1) (2 * e) = some k := by
-                    show (seq (k+1)).2.getI (2 * e) = some k
-                    rw [hseq]
-                    simp only [Prod.map_snd, id_eq]
-                    exact h3
+                  have heq : res (k+1) (2 * e) = some k := h3
                   rw [heq] at hres_k1
                   rw [← hres_k1] at hres_k
                   exact absurd hres_k (no_k_in_r₀ (2 * e))
@@ -481,11 +475,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                   have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
                   have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
                   -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
-                  have heq : res (k+1) (2 * e' + 1) = some k := by
-                    show (seq (k+1)).2.getI (2 * e' + 1) = some k
-                    rw [hseq]
-                    simp only [Prod.map_snd, id_eq]
-                    exact extend_snd_getI_eq hfw2
+                  have heq : res (k+1) (2 * e' + 1) = some k :=
+                    extend_snd_getI_eq hfw2
                   rw [heq] at hres'_k1
                   rw [← hres'_k1] at hres'_k
                   exact absurd hres'_k (no_k_in_r₀ (2 * e' + 1))
@@ -512,11 +503,8 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
             obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
             have hres_k : res k (2 * e + 1) = o := ho k k_ge
             have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
-            have heq : res (k+1) (2 * e + 1) = some k := by
-              show (seq (k+1)).2.getI (2 * e + 1) = some k
-              rw [hseq]
-              simp only [Prod.map_snd, id_eq]
-              exact extend_snd_getI_eq hfw2
+            have heq : res (k+1) (2 * e + 1) = some k :=
+              extend_snd_getI_eq hfw2
             rw [heq] at hres_k1
             rw [← hres_k1] at hres_k
             exact absurd hres_k (no_k_in_r₀ (2 * e + 1))
