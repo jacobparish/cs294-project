@@ -226,27 +226,17 @@ lemma primrec_seq : Primrec seq := by
   -- Prod.map Prod.swap id is primrec: ((a, b), c) ↦ ((b, a), c)
   have hswap : Primrec (Prod.map Prod.swap id :
       (List ℕ × List ℕ) × List (Option ℕ) → (List ℕ × List ℕ) × List (Option ℕ)) :=
-    Primrec.pair
-      (Primrec.pair (Primrec.snd.comp Primrec.fst) (Primrec.fst.comp Primrec.fst))
-      Primrec.snd
-  have hf1 : Primrec (fun x => 2 * x) :=
-    Primrec.nat_mul.comp (Primrec.const 2) Primrec.id
-  have hf2 : Primrec (fun x => 2 * x + 1) :=
-    Primrec.succ.comp (Primrec.nat_mul.comp (Primrec.const 2) Primrec.id)
+    .pair (.pair (.comp .snd .fst) (.comp .fst .fst)) .snd
+  have hf1 : Primrec (2 * ·) := Primrec.nat_mul.comp (.const 2) .id
+  have hf2 : Primrec (2 * · + 1) := Primrec.succ.comp hf1
   -- step: (k, prev) ↦ Prod.map .swap id (extend (2*·+1) k (Prod.map .swap id (extend (2*·) k prev)))
-  have hstep : Primrec₂ (fun k x =>
-      Prod.map Prod.swap id (extend (2 * · + 1) k (Prod.map Prod.swap id (extend (2 * ·) k x)))) :=
-    hswap.comp
-      ((primrec₂_extend hf2).comp Primrec.fst
-        (hswap.comp ((primrec₂_extend hf1).comp Primrec.fst Primrec.snd)))
-  exact (Primrec.nat_rec₁ (([], []), []) hstep).of_eq fun n => by
-    induction n with
-    | zero => simp [seq]
-    | succ n ih =>
-      have hseq : seq (n + 1) = Prod.map Prod.swap id
-          (extend (2 * · + 1) n (Prod.map Prod.swap id (extend (2 * ·) n (seq n)))) := by
-        simp [seq]
-      rw [hseq, ← ih]
+  have hstep := hswap.comp
+    ((primrec₂_extend hf2).comp Primrec.fst
+      (hswap.comp ((primrec₂_extend hf1).comp Primrec.fst Primrec.snd)))
+  refine (Primrec.nat_rec₁ (([], []), []) hstep.to₂).of_eq fun n => ?_
+  induction n with
+  | zero => rfl
+  | succ n IH => rw [seq, ← IH]
 
 /--
 `seq1` is primitive recursive.
