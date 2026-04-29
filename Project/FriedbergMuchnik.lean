@@ -428,67 +428,64 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
         | none => simp [extend, hfw, hr₀n]
         | some p =>
           obtain ⟨e, y⟩ := p
-          -- Position 2e: action occurs at 2e. Show 2e > n.
-          have h2e_gt : 2 * e > n := by
-            by_contra! hle
-            rcases lt_or_eq_of_le hle with h2e_lt | h2e_eq
-            · -- 2e < n: use stability + no_k_in_r₀.
-              obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
-              have hres_k : res k (2 * e) = o := ho k k_ge
-              have hres_k1 : res (k+1) (2 * e) = o := ho (k+1) k1_ge
-              -- After extend at stage k, value at 2e should appear as some k somewhere.
-              -- Position 2e in u₁ is some k. But this intermediate state is not `seq`.
-              -- We trace through second extend:
-              -- Either second extend doesn't act, or acts at some 2e'+1.
-              -- In either sub-case, the final value at some position ≤ n is some k,
-              -- contradicting no_k_in_r₀ via stability.
-              have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
-              cases hfw2 : findWitness? (2 * · + 1) k u₂ with
-              | none =>
-                -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
-                have heq : res (k+1) (2 * e) = some k := by
-                  show (seq (k+1)).2.getI (2 * e) = some k
-                  rw [hseq]
-                  simp only [Prod.map_snd, id_eq]
-                  simp only [extend, hfw2]
+          -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
+          rwa [extend_snd_getI_lt hfw ?_]
+          by_contra! hle
+          rcases lt_or_eq_of_le hle with h2e_lt | h2e_eq
+          · -- 2e < n: use stability + no_k_in_r₀.
+            obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
+            have hres_k : res k (2 * e) = o := ho k k_ge
+            have hres_k1 : res (k+1) (2 * e) = o := ho (k+1) k1_ge
+            -- After extend at stage k, value at 2e should appear as some k somewhere.
+            -- Position 2e in u₁ is some k. But this intermediate state is not `seq`.
+            -- We trace through second extend:
+            -- Either second extend doesn't act, or acts at some 2e'+1.
+            -- In either sub-case, the final value at some position ≤ n is some k,
+            -- contradicting no_k_in_r₀ via stability.
+            have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
+            cases hfw2 : findWitness? (2 * · + 1) k u₂ with
+            | none =>
+              -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
+              have heq : res (k+1) (2 * e) = some k := by
+                show (seq (k+1)).2.getI (2 * e) = some k
+                rw [hseq]
+                simp only [Prod.map_snd, id_eq]
+                simp only [extend, hfw2]
+                exact h1
+              rw [heq] at hres_k1
+              rw [← hres_k1] at hres_k
+              exact absurd hres_k (no_k_in_r₀ (2 * e))
+            | some p' =>
+              obtain ⟨e', y'⟩ := p'
+              -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
+              by_cases! hord : 2 * e < 2 * e' + 1
+              · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
+                have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
+                  rw [extend_snd_getI_lt hfw2 hord]
                   exact h1
+                have heq : res (k+1) (2 * e) = some k := h3
                 rw [heq] at hres_k1
                 rw [← hres_k1] at hres_k
                 exact absurd hres_k (no_k_in_r₀ (2 * e))
-              | some p' =>
-                obtain ⟨e', y'⟩ := p'
-                -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
-                by_cases! hord : 2 * e < 2 * e' + 1
-                · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
-                  have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
-                    rw [extend_snd_getI_lt hfw2 hord]
-                    exact h1
-                  have heq : res (k+1) (2 * e) = some k := h3
-                  rw [heq] at hres_k1
-                  rw [← hres_k1] at hres_k
-                  exact absurd hres_k (no_k_in_r₀ (2 * e))
-                · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
-                  have hstrict : 2 * e' + 1 < 2 * e := by omega
-                  -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
-                  have h2e'_lt_n : 2 * e' + 1 < n := by omega
-                  obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) h2e'_lt_n
-                  have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
-                  have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
-                  -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
-                  have heq : res (k+1) (2 * e' + 1) = some k :=
-                    extend_snd_getI_eq hfw2
-                  rw [heq] at hres'_k1
-                  rw [← hres'_k1] at hres'_k
-                  exact absurd hres'_k (no_k_in_r₀ (2 * e' + 1))
-            · -- 2e = n
-              subst h2e_eq
-              -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
-              have := findWitness?_some_getI_eq_none hfw
-              rw [this] at hr₀n
-              contradiction
-          -- So 2e > n, first extend preserves position n.
-          rw [extend_snd_getI_lt hfw h2e_gt]
-          exact hr₀n
+              · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
+                have hstrict : 2 * e' + 1 < 2 * e := by omega
+                -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
+                have h2e'_lt_n : 2 * e' + 1 < n := by omega
+                obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) h2e'_lt_n
+                have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
+                have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
+                -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
+                have heq : res (k+1) (2 * e' + 1) = some k :=
+                  extend_snd_getI_eq hfw2
+                rw [heq] at hres'_k1
+                rw [← hres'_k1] at hres'_k
+                exact absurd hres'_k (no_k_in_r₀ (2 * e' + 1))
+          · -- 2e = n
+            subst h2e_eq
+            -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
+            have := findWitness?_some_getI_eq_none hfw
+            rw [this] at hr₀n
+            contradiction
       -- Now show second extend preserves position n.
       have hr₂n : u₂.2.getI n = some j := hr₁n
       show (extend (2 * · + 1) k u₂).2.getI n = some j
@@ -496,25 +493,23 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
       | none => simp [extend, hfw2, hr₂n]
       | some p =>
         obtain ⟨e, y⟩ := p
-        have h_gt : 2 * e + 1 > n := by
-          by_contra! hle
-          rcases lt_or_eq_of_le hle with h_lt | h_eq
-          · -- 2e+1 < n.
-            obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
-            have hres_k : res k (2 * e + 1) = o := ho k k_ge
-            have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
-            have heq : res (k+1) (2 * e + 1) = some k :=
-              extend_snd_getI_eq hfw2
-            rw [heq] at hres_k1
-            rw [← hres_k1] at hres_k
-            exact absurd hres_k (no_k_in_r₀ (2 * e + 1))
-          · -- 2e+1 = n.
-            subst h_eq
-            have := findWitness?_some_getI_eq_none hfw2
-            rw [this] at hr₂n
-            contradiction
-        rw [extend_snd_getI_lt hfw2 h_gt]
-        exact hr₂n
+        rwa [extend_snd_getI_lt hfw2 ?_]
+        by_contra! hle
+        rcases lt_or_eq_of_le hle with h_lt | h_eq
+        · -- 2e+1 < n.
+          obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
+          have hres_k : res k (2 * e + 1) = o := ho k k_ge
+          have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
+          have heq : res (k+1) (2 * e + 1) = some k :=
+            extend_snd_getI_eq hfw2
+          rw [heq] at hres_k1
+          rw [← hres_k1] at hres_k
+          exact absurd hres_k (no_k_in_r₀ (2 * e + 1))
+        · -- 2e+1 = n.
+          subst h_eq
+          have := findWitness?_some_getI_eq_none hfw2
+          rw [this] at hr₂n
+          contradiction
 
 /--
 Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
