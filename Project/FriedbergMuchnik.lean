@@ -430,8 +430,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
           obtain ⟨e, y⟩ := p
           -- Position 2e: action occurs at 2e. Show 2e > n.
           have h2e_gt : 2 * e > n := by
-            by_contra hle
-            push_neg at hle
+            by_contra! hle
             rcases lt_or_eq_of_le hle with h2e_lt | h2e_eq
             · -- 2e < n: use stability + no_k_in_r₀.
               obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
@@ -460,7 +459,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
               | some p' =>
                 obtain ⟨e', y'⟩ := p'
                 -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
-                by_cases hord : 2 * e < 2 * e' + 1
+                by_cases! hord : 2 * e < 2 * e' + 1
                 · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
                   have h3 : (extend (2 * · + 1) k u₂).2.getI (2 * e) = some k := by
                     rw [extend_snd_getI_lt hfw2 hord]
@@ -475,7 +474,6 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
                   rw [← hres_k1] at hres_k
                   exact absurd hres_k (no_k_in_r₀ (2 * e))
                 · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
-                  push_neg at hord
                   have hstrict : 2 * e' + 1 < 2 * e := by omega
                   -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
                   have h2e'_lt_n : 2 * e' + 1 < n := by omega
@@ -508,8 +506,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
       | some p =>
         obtain ⟨e, y⟩ := p
         have h_gt : 2 * e + 1 > n := by
-          by_contra hle
-          push_neg at hle
+          by_contra! hle
           rcases lt_or_eq_of_le hle with h_lt | h_eq
           · -- 2e+1 < n.
             obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
