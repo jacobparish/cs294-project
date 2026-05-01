@@ -352,17 +352,18 @@ lemma extend_snd_bound_le {f k u}
       contradiction
 
 /--
-Helper: any `some m` value in `(seq k).2` satisfies `m < k`.
+Helper: any `some m` value in `res k` satisfies `m < k`.
 -/
 lemma res_lt_stage (k i m : ℕ) (h : res k i = some m) : m < k := by
-  induction k generalizing i m with
-  | zero => tauto
+  induction k with
+  | zero => contradiction
   | succ k IH =>
     apply Nat.lt_succ_of_le
     simp only [res, seq, Prod.map_snd, id_eq] at h
     refine extend_snd_bound_le i m (fun h1 => ?_) h
     refine extend_snd_bound_le i m (fun h2 => ?_) h1
     exact (IH i m h2).le
+    exact (IH h2).le
 
 /--
 Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => res k i` is eventually constant.
