@@ -486,7 +486,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
 /--
 Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
 -/
-def ofPred {α} (p : α → Prop) [∀ a, Decidable (p a)] : α → ℕ :=
+def ofPred {α} (p : α → Prop) [DecidablePred p] : α → ℕ :=
   fun a => (decide (p a)).toNat
 
 open Classical in
