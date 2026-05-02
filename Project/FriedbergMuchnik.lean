@@ -370,7 +370,6 @@ lemma res_lt_stage (k i m : ℕ) (h : res k i = some m) : m < k := by
     simp only [res, seq, Prod.map_snd, id_eq] at h
     refine extend_snd_bound_le i m (fun h1 => ?_) h
     refine extend_snd_bound_le i m (fun h2 => ?_) h1
-    exact (IH i m h2).le
     exact (IH h2).le
 
 /--
