@@ -21,7 +21,7 @@ public import Mathlib.Computability.Halting
 
 @[expose] public section
 
-namespace RecursiveIn.Code
+namespace Nat.RecursiveIn.Code
 
 /--
 Substitute the oracle in a code `c` for another `RecursiveIn.Code` `c'`.
@@ -62,7 +62,7 @@ theorem primrec₂_subst : Primrec₂ subst := by
     (pc := fun _ _ _ hf hg => prec hf hg)
     (rf := fun _ _ hf => rfind' hf)
     Primrec.fst
-    (Primrec.const zero) (Primrec.const succ) (Primrec.const left) (Primrec.const right)
+    (.const zero) (.const succ) (.const left) (.const right)
     Primrec.snd
     (primrec₂_pair.comp
       (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
@@ -92,7 +92,7 @@ theorem primrec₂_substPartrec : Primrec₂ substPartrec := by
     (pc := fun _ _ _ hf hg => Nat.Partrec.Code.prec hf hg)
     (rf := fun _ _ hf => Nat.Partrec.Code.rfind' hf)
     Primrec.fst
-    (Primrec.const .zero) (Primrec.const .succ) (Primrec.const .left) (Primrec.const .right)
+    (.const .zero) (.const .succ) (.const .left) (.const .right)
     Primrec.snd
     (Nat.Partrec.Code.primrec₂_pair.comp
       (Primrec.fst.comp (Primrec.snd.comp (Primrec.snd.comp Primrec.snd)))
@@ -124,6 +124,6 @@ The `eval` of `c.substPartrec c'` is equal to the `eval` of `c` with oracle `c'.
 theorem eval_substPartrec (c : Code) (c' : Nat.Partrec.Code) : (c.substPartrec c').eval = c.eval c'.eval := by
   induction c with simp [substPartrec, eval, Nat.Partrec.Code.eval, *]
 
-end RecursiveIn.Code
+end Nat.RecursiveIn.Code
 
 end

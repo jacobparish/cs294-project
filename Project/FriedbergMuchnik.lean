@@ -36,7 +36,7 @@ end List
 
 namespace Computability
 
-open RecursiveIn Denumerable
+open Nat.RecursiveIn Denumerable
 
 -- TODO: Why are the following instances not in mathlib?
 

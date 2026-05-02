@@ -212,7 +212,7 @@ private lemma subset_fold_union {α} [DecidableEq α] {n : ℕ} (s : ∀ k < n, 
 
 end Finset
 
-namespace RecursiveIn.Code
+namespace Nat.RecursiveIn.Code
 
 /--
 Given a code `c` and an oracle `o`, `evalq c o` is a partial function `ℕ →. ℕ × Finset ℕ` with the same domain as `eval c o`. If defined, the first coordinate of `evalq c o n` is `eval c o n`, and the second coordinate is the set of all oracle queries made during the evaluation of `eval c o n`.
@@ -452,6 +452,6 @@ theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n �
     rw [Nat.rfindFold_snd_eq_fold hp]
     exact Finset.subset_fold_union _ (Nat.lt_succ_of_le hk) hi
 
-end RecursiveIn.Code
+end Nat.RecursiveIn.Code
 
 end

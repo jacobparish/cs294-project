@@ -59,7 +59,7 @@ end List
 
 namespace TuringDegree
 
-open RecursiveIn
+open Nat.RecursiveIn
 
 noncomputable section
 
@@ -154,9 +154,8 @@ theorem extend_spec (c : Code) (p : List ℕ × List ℕ) (f g : ℕ → ℕ) (h
     simp only [extend] at hf
     rw [dif_neg h] at hf
     simp at hf
-    push_neg at h
-    rw [ne_eq, funext_iff]
-    push_neg
+    push Not at h
+    apply Function.ne_iff.mpr
     use t.length
     intro heq
     -- Step 1: ↑g t.length = Part.some (g t.length) is defined, so c.eval ↑f t.length is too
