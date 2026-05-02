@@ -557,9 +557,7 @@ theorem smn :
 
 /-- A function `f` is Turing reducible to `g` if and only if there is a `Code` which evaluates to `f`, given oracle `g`. -/
 theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code, eval c g = f := by
-  unfold TuringReducible RecursiveIn
-  simp only [decode_nat, Part.coe_some, encode, id_eq, implies_true, Part.map_id', Part.bind_some]
-  change Nat.RecursiveIn {g} f ↔ _
+  rw [TuringReducible, RecursiveIn.iff_nat]
   refine ⟨fun h => ?_, ?_⟩
   · induction h with
     | zero => exact ⟨zero, rfl⟩
