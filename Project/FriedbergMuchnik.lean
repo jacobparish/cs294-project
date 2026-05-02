@@ -143,7 +143,15 @@ a predicate combining (isNone restraint) ∧ (witness not yet enumerated) ∧ (e
 timeouts, so we hold the proof as `sorry` pending optimisation.
 -/
 lemma primrec₂_findWitness? {f} (hf : Primrec f) : Primrec₂ (findWitness? f) := by
-  sorry
+  refine Primrec.list_find?' ?_ ?_
+  · exact Primrec.list_product'.comp
+      (.comp .list_range .fst) (.comp .list_range .fst)
+  · simp only [Option.isNone_iff_eq_none, Option.mem_def, Bool.decide_and, decide_not]
+    refine Primrec.and.comp ?_ (Primrec.and.comp ?_ (Primrec.and.comp ?_ ?_))
+    · sorry
+    · sorry
+    · sorry
+    · sorry
 
 /--
 `extend` is primitive recursive (if the indexing function is).
