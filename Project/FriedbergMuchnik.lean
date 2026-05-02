@@ -492,11 +492,6 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
           rw [findWitness?_some_getI_eq_none hfw2] at hr₂n
           contradiction
 
-/--
-Convert a predicate `α → Prop` into an indicator function `α → ℕ`.
--/
-def ofPred {α} (p : α → Prop) [DecidablePred p] : α → ℕ :=
-  fun a => (decide (p a)).toNat
 
 open Classical in
 /--

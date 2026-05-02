@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Computability.PartrecCode
+public import Project.Basic
 
 /-!
 This extends `Mathlib.Computability.PartrecCode` to add some additional lemmas about `Nat.Partrec.Code`. In particular, codes for several basic functions are defined, along with simp lemmas for their eval functions.
@@ -12,6 +13,11 @@ namespace Nat.Partrec.Code
 section
 
 -- TODO: It may be better to create a type `Nat.Primrec.Code`, because then its eval function will be total and we won't have to deal with PFun.
+
+/--
+A code for the function with empty domain.
+-/
+protected def none : Code := rfind' succ
 
 /--
 A code which evaluates to `Nat.pred`.
@@ -73,6 +79,14 @@ protected def max : Code := Code.ite Code.le right left
 A code which evaluates to the equality function.
 -/
 protected def eq : Code := Code.min.comp <| pair Code.le (Code.le.comp Code.swap)
+
+/--
+`none` always evaluates to `Part.none`.
+-/
+@[simp]
+lemma eval_none : eval Code.none = fun _ => Part.none := by
+  funext n
+  simp [eval, Code.none, Part.eq_none_iff]
 
 @[simp]
 lemma eval_pred : eval Code.pred = Nat.pred := by
@@ -316,14 +330,15 @@ def listMem : List ℕ → Code
 `ofList l` evaluates to `fun n => l[n]?`.
 -/
 @[simp]
-lemma eval_listMem (l : List ℕ) (n : ℕ) : eval (listMem l) n = (decide (n ∈ l)).toNat := by
+lemma eval_listMem (l : List ℕ) : eval (listMem l) = ofPred (· ∈ l) := by
+  funext n
   induction l with
   | nil => rfl
   | cons x xs IH =>
     simp only [listMem, eval, IH, Seq.seq]
     by_cases! h : x = n
-    · simp [h, Bool.toNat_le]
-    · simp [h, h.symm]
+    · simp [h, Bool.toNat_le, ofPred]
+    · simp [h, h.symm, ofPred]
 
 /--
 `listMem` is primitive recursive.
@@ -334,6 +349,46 @@ lemma primrec_listMem : Primrec listMem := by
   exact (primrec₂_comp.comp (.const _) .id).comp <|
     primrec₂_pair.comp (primrec₂_curry.comp (.const _) (.comp .fst .snd)) <|
       .comp .snd (.comp .snd .snd)
+
+/--
+From a list `l`, return a code whose eval is `fun n => l[n]?`.
+-/
+def ofList : List ℕ → Code
+  | .nil => Code.none
+  | .cons x xs => prec ((Code.const x).comp right) ((ofList xs).comp (left.comp right))
+    |>.comp (pair zero Code.id)
+
+/--
+`ofList l` evaluates to `fun n => l[n]?`.
+-/
+@[simp]
+lemma eval_ofList (l : List ℕ) : eval (ofList l) = (↑l[·]?) := by
+  induction l with
+  | nil => simp [ofList]
+  | cons x xs IHxs =>
+    funext n
+    induction n with
+    | zero =>
+      simp [ofList, eval, Seq.seq, Part.bind_some_eq_map]
+      rfl
+    | succ n IHn =>
+      simp_all [ofList, eval, Seq.seq, pure, PFun.pure]
+      by_cases! h : n < xs.length + 1
+      · rw [List.getElem?_eq_getElem h]
+        simp
+      · rw [List.getElem?_eq_none h, List.getElem?_eq_none (le_of_succ_le h)]
+        simp
+
+/--
+`ofList` is primitive recursive.
+-/
+lemma primrec_ofList : Primrec ofList := by
+  convert Primrec.list_rec .id (.const Code.none) (?_ : Primrec₂ fun _ (x, xs, IH) => prec ((Code.const x).comp right) (IH.comp (left.comp right))
+    |>.comp (pair zero Code.id)) with l
+  · induction l with simp [ofList, *]
+  refine primrec₂_comp.comp (primrec₂_prec.comp ?_ ?_) (.const _)
+  · exact primrec₂_comp.comp (primrec_const.comp (.comp .fst .snd)) (.const _)
+  · exact primrec₂_comp.comp (.comp .snd (.comp .snd .snd)) (.const _)
 
 end
 end Nat.Partrec.Code
