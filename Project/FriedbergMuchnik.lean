@@ -56,15 +56,14 @@ See `extend` for a description of the parameters.
 def findWitness? (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option ℕ) → Option (ℕ × ℕ) := fun (p, r) =>
   -- `List.Product` is ordered so that this checks all `y`-values for `e = 0`, then all `y`-values for `e = 1`, and so on.
   List.product (.range k) (.range k) |>.find? fun (e, y) =>
-    let x := Nat.pair e y
-    -- We need the requirement `Rₑ` to not already be satisfied, as well as a witness `x` such that:
+    -- We need the requirement `Rₑ` to not already be satisfied, as well as a witness `x = ⟪e, y⟫` such that:
     -- (1) `x` is not already enumerated into `p.1`,
     -- (2) the eval of the code encoded by `e` with oracle `p.2` halts in `< k` steps and outputs `x`, and
     -- (3) `r[i] < x` for every `i < f e`.
     (r.getI (f e)).isNone
-      ∧ x ∉ p.1
-      ∧ 0 ∈ ((ofNat Code e).substPartrec (.listMem p.2)).evaln k x
-      ∧ ∀ i < f e, r.getI i < x
+      ∧ ⟪e, y⟫ ∉ p.1
+      ∧ 0 ∈ ((ofNat Code e).substPartrec (.listMem p.2)).evaln k ⟪e, y⟫
+      ∧ ∀ i < f e, r.getI i < ⟪e, y⟫
 
 /--
 The roles of the parameters are as follows:
@@ -78,7 +77,7 @@ def extend (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option 
   -- If no strategy needs to act, then do nothing.
   | none => (p, r)
   -- If `Rₑ` needs to act, then add the witness to `p.1`. Also, injure all strategies `Rᵢ` for `i > f e`, and set `r[f e] = some k`.
-  | some (e, y) => ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
+  | some (e, y) => ((⟪e, y⟫ :: p.1, p.2), r.takeI (f e) ++ [some k])
 
 lemma extend_fst {f k u} : u.1.1 ⊆ (extend f k u).1.1 := by
   simp only [extend]
@@ -175,7 +174,7 @@ lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
   -- The some branch: (a, (e, y)) ↦ ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
   -- Let B := ℕ × ℕ. Input type for g is A × B.
   have hsome : Primrec₂ (fun (a : A) (ey : ℕ × ℕ) =>
-      ((Nat.pair ey.1 ey.2 :: a.2.1.1, a.2.1.2), a.2.2.takeI (f ey.1) ++ [some a.1])) := by
+      ((⟪ey.1, ey.2⟫ :: a.2.1.1, a.2.1.2), a.2.2.takeI (f ey.1) ++ [some a.1])) := by
     -- Projections on A × B
     have he : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.1) := Primrec.fst.comp .snd
     have hy : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.2) := Primrec.snd.comp .snd
