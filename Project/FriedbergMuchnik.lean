@@ -51,9 +51,14 @@ instance {α} [LT α] [DecidableLT α] : DecidableLT (Option α) := fun a b => b
   cases a <;> cases b <;> simp <;> infer_instance
 
 /--
+The type carrying the data for each stage of the Friedberg-Muchnik construction. This is usually unpacked as `(p, r)`. See `extend` for the interpretation of `p` and `r`.
+-/
+abbrev FMStage := (List ℕ × List ℕ) × List (Option ℕ)
+
+/--
 See `extend` for a description of the parameters.
 -/
-def findWitness? (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option ℕ) → Option (ℕ × ℕ) := fun (p, r) =>
+def findWitness? (f : ℕ → ℕ) (k : ℕ) : FMStage → Option (ℕ × ℕ) := fun (p, r) =>
   -- `List.Product` is ordered so that this checks all `y`-values for `e = 0`, then all `y`-values for `e = 1`, and so on.
   List.product (.range k) (.range k) |>.find? fun (e, y) =>
     -- We need the requirement `Rₑ` to not already be satisfied, as well as a witness `x = ⟪e, y⟫` such that:
@@ -72,7 +77,7 @@ The roles of the parameters are as follows:
 * `f` : The index from a code into the restraint list `r`.
 * `r` : The list of restraints. `r[f e] = none` (or the index is out of bounds) if requirement `Rₑ` is not currently satisfied. `r[f e] = some j'` if requirement `Rₑ` has been satisfied at some earlier stage `j < k`, and has not been injured since then.
 -/
-def extend (f : ℕ → ℕ) (k : ℕ) : (List ℕ × List ℕ) × List (Option ℕ) → (List ℕ × List ℕ) × List (Option ℕ) := fun (p, r) =>
+def extend (f : ℕ → ℕ) (k : ℕ) : FMStage → FMStage := fun (p, r) =>
   match findWitness? f k (p, r) with
   -- If no strategy needs to act, then do nothing.
   | none => (p, r)
@@ -195,7 +200,7 @@ lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
 Having defined the `extend` function, we can build the increasing sequence of finite sets easily.
 Note that `extend` is invoked on `(p.1, p.2)` using the indexing function `2 * ·`, and then on `(p.2, p.1)` using the indexing function `2 * · + 1`.
 -/
-def seq : ℕ → (List ℕ × List ℕ) × List (Option ℕ)
+def seq : ℕ → FMStage
   | 0 => (([], []), [])
   | k + 1 =>
     Prod.map .swap id <|
@@ -235,8 +240,7 @@ lemma seq2_mono (k : ℕ) : seq2 k ⊆ seq2 (k + 1) := by
 -/
 lemma primrec_seq : Primrec seq := by
   -- Prod.map Prod.swap id is primrec: ((a, b), c) ↦ ((b, a), c)
-  have hswap : Primrec (Prod.map Prod.swap id :
-      (List ℕ × List ℕ) × List (Option ℕ) → (List ℕ × List ℕ) × List (Option ℕ)) :=
+  have hswap : Primrec (Prod.map Prod.swap id : FMStage → FMStage) :=
     .pair (.pair (.comp .snd .fst) (.comp .fst .fst)) .snd
   have hf1 : Primrec (2 * ·) := Primrec.nat_mul.comp (.const 2) .id
   have hf2 : Primrec (2 * · + 1) := Primrec.succ.comp hf1
@@ -292,8 +296,7 @@ lemma re_p2 : REPred p2 := re_of_primrec_seq primrec_seq2
 /--
 Helper: values in `(extend f k u).2` at position `i < f e` are preserved from `u.2` when action occurs.
 -/
-lemma extend_snd_getI_lt {f : ℕ → ℕ} {k : ℕ}
-    {u : (List ℕ × List ℕ) × List (Option ℕ)} {e y i : ℕ}
+lemma extend_snd_getI_lt {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y i : ℕ}
     (h : findWitness? f k u = some (e, y)) (hi : i < f e) :
     (extend f k u).2.getI i = u.2.getI i := by
   simp only [extend, h]
@@ -303,8 +306,7 @@ lemma extend_snd_getI_lt {f : ℕ → ℕ} {k : ℕ}
 /--
 Helper: value at position `f e` of `(extend f k u).2` is `some k` when action occurs.
 -/
-lemma extend_snd_getI_eq {f : ℕ → ℕ} {k : ℕ}
-    {u : (List ℕ × List ℕ) × List (Option ℕ)} {e y : ℕ}
+lemma extend_snd_getI_eq {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y : ℕ}
     (h : findWitness? f k u = some (e, y)) :
     (extend f k u).2.getI (f e) = some k := by
   simp only [extend, h]
@@ -315,8 +317,7 @@ lemma extend_snd_getI_eq {f : ℕ → ℕ} {k : ℕ}
 /--
 Helper: value at position `i > f e` of `(extend f k u).2` is `none` when action occurs.
 -/
-lemma extend_snd_getI_gt {f : ℕ → ℕ} {k : ℕ}
-    {u : (List ℕ × List ℕ) × List (Option ℕ)} {e y i : ℕ}
+lemma extend_snd_getI_gt {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y i : ℕ}
     (h : findWitness? f k u = some (e, y)) (hi : f e < i) :
     (extend f k u).2.getI i = none := by
   simp only [extend, h]
@@ -328,8 +329,7 @@ lemma extend_snd_getI_gt {f : ℕ → ℕ} {k : ℕ}
 /--
 Helper: `findWitness?` precondition gives `u.2.getI (f e) = none` when it returns `some (e, y)`.
 -/
-lemma findWitness?_some_getI_eq_none {f : ℕ → ℕ} {k : ℕ}
-    {u : (List ℕ × List ℕ) × List (Option ℕ)} {e y : ℕ}
+lemma findWitness?_some_getI_eq_none {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y : ℕ}
     (h : findWitness? f k u = some (e, y)) :
     u.2.getI (f e) = none := by
   unfold findWitness? at h
@@ -341,8 +341,7 @@ lemma findWitness?_some_getI_eq_none {f : ℕ → ℕ} {k : ℕ}
 /--
 Helper: if all `some m` values in `u.2` satisfy `m ≤ k`, then the same holds for `(extend f k u).2`.
 -/
-lemma extend_snd_bound_le {f k u}
-    (i m : ℕ)
+lemma extend_snd_bound_le {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {i m : ℕ}
     (h : u.2.getI i = some m → m ≤ k)
     (hget : (extend f k u).2.getI i = some m) : m ≤ k := by
   cases hfw : findWitness? f k u with
@@ -371,8 +370,8 @@ lemma res_lt_stage {k i m : ℕ} (h : res k i = some m) : m < k := by
   | succ k IH =>
     apply Nat.lt_succ_of_le
     simp only [res, seq, Prod.map_snd, id_eq] at h
-    refine extend_snd_bound_le i m (fun h1 => ?_) h
-    refine extend_snd_bound_le i m (fun h2 => ?_) h1
+    refine extend_snd_bound_le (fun h1 => ?_) h
+    refine extend_snd_bound_le (fun h2 => ?_) h1
     exact (IH h2).le
 
 /--
