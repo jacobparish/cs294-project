@@ -365,7 +365,7 @@ lemma extend_snd_bound_le {f k u}
 /--
 Helper: any `some m` value in `res k` satisfies `m < k`.
 -/
-lemma res_lt_stage (k i m : ℕ) (h : res k i = some m) : m < k := by
+lemma res_lt_stage {k i m : ℕ} (h : res k i = some m) : m < k := by
   induction k with
   | zero => contradiction
   | succ k IH =>
