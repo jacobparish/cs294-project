@@ -376,6 +376,102 @@ lemma res_lt_stage (k i m : ℕ) (h : res k i = some m) : m < k := by
     exact (IH h2).le
 
 /--
+If for all `i < n`, `res k i` is constant for `k ≥ k₀`, and if for some `k₁ ≥ k₀` we have `res k₁ n = some j`, then this value persists forever.
+-/
+lemma res_eq_some_of_stable_prefix {n k₀ k₁ j} (hk₀ : ∀ i < n, ∃ o, ∀ k ≥ k₀, res k i = o) (hle : k₀ ≤ k₁) (hk₁ : res k₁ n = some j) : ∀ k ≥ k₁, res k n = some j := by
+  intro k hk
+  induction k, hk using Nat.le_induction with
+  | base => exact hk₁
+  | succ k hk IH =>
+    -- The goal is to show `res (k+1) n = some j`. This is true because no
+    -- action in either `extend` call at stage `k` can occur at position
+    -- `≤ n`, and hence both calls preserve position `n`.
+    have k_ge : k ≥ k₀ := le_trans hle hk
+    have k1_ge : k+1 ≥ k₀ := Nat.le_succ_of_le k_ge
+    -- `k` doesn't appear as a value in `res k`.
+    have no_k_in_r₀ (i : ℕ) : res k i ≠ some k :=
+      fun hi => lt_irrefl k (res_lt_stage hi)
+    -- Unfold seq (k+1).
+    have hseq : seq (k+1) = _ := seq.eq_2 k
+    simp only [res, seq, Prod.map_snd, id_eq]
+    -- Introduce the two extend stages.
+    set u₀ := seq k with hu₀
+    set u₁ := extend (2 * ·) k u₀ with hu₁
+    set u₂ := Prod.map Prod.swap id u₁ with hu₂
+    have hr₀n : u₀.2.getI n = some j := IH
+    -- Show u₁.2.getI n = some j: first extend preserves position n.
+    have hr₁n : u₁.2.getI n = some j := by
+      rw [hu₁]
+      rcases hfw : findWitness? (2 * ·) k u₀ with - | ⟨e, y⟩
+      · simp [extend, hfw, hr₀n]
+      · -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
+        rwa [extend_snd_getI_lt hfw ?_]
+        by_contra! hle
+        rcases lt_or_eq_of_le hle with h2e_lt | rfl
+        · -- 2e < n: use stability + no_k_in_r₀.
+          obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
+          have hres_k : res k (2 * e) = o := ho k k_ge
+          have hres_k1 : res (k+1) (2 * e) = o := ho (k+1) k1_ge
+          -- After extend at stage k, value at 2e should appear as some k somewhere.
+          -- Position 2e in u₁ is some k. But this intermediate state is not `seq`.
+          -- We trace through second extend:
+          -- Either second extend doesn't act, or acts at some 2e'+1.
+          -- In either sub-case, the final value at some position ≤ n is some k,
+          -- contradicting no_k_in_r₀ via stability.
+          have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
+          rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e', y'⟩
+          · -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
+            have heq : res (k+1) (2 * e) = some k := by
+              simp only [res, hseq, extend, hfw2]
+              exact h1
+            rw [heq] at hres_k1
+            rw [← hres_k1] at hres_k
+            exact no_k_in_r₀ (2 * e) hres_k
+          · -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
+            by_cases! hord : 2 * e < 2 * e' + 1
+            · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
+              have heq : res (k+1) (2 * e) = some k := by
+                simp only [res, hseq, Prod.map_snd, id_eq, extend_snd_getI_lt hfw2 hord]
+                exact h1
+              rw [heq] at hres_k1
+              rw [← hres_k1] at hres_k
+              exact no_k_in_r₀ (2 * e) hres_k
+            · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
+              -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
+              obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) (hord.trans_lt h2e_lt)
+              have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
+              have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
+              -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
+              have heq : res (k+1) (2 * e' + 1) = some k :=
+                extend_snd_getI_eq hfw2
+              rw [heq] at hres'_k1
+              rw [← hres'_k1] at hres'_k
+              exact no_k_in_r₀ (2 * e' + 1) hres'_k
+        · -- 2e = n
+          -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
+          rw [findWitness?_some_getI_eq_none hfw] at hr₀n
+          contradiction
+    -- Now show second extend preserves position n.
+    have hr₂n : u₂.2.getI n = some j := hr₁n
+    rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e, y⟩
+    · simp [extend, hfw2, hr₂n]
+    · rwa [extend_snd_getI_lt hfw2 ?_]
+      by_contra! hle
+      rcases lt_or_eq_of_le hle with h_lt | rfl
+      · -- 2e+1 < n.
+        obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
+        have hres_k : res k (2 * e + 1) = o := ho k k_ge
+        have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
+        have heq : res (k+1) (2 * e + 1) = some k :=
+          extend_snd_getI_eq hfw2
+        rw [heq] at hres_k1
+        rw [← hres_k1] at hres_k
+        exact no_k_in_r₀ (2 * e + 1) hres_k
+      · -- 2e+1 = n.
+        rw [findWitness?_some_getI_eq_none hfw2] at hr₂n
+        contradiction
+
+/--
 Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => res k i` is eventually constant.
 -/
 lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res k i = o := by
@@ -398,101 +494,10 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
     -- If for every `k ≥ k₀` the value is `none`, then we conclude immediately.
     by_cases! h : ∀ k ≥ k₀, res k n = none
     · exact ⟨k₀, le_refl k₀, none, h⟩
-    -- Otherwise, we find a `k₁ ≥ k₀` where the value is `some j`, and we must show this value persists forever.
-    simp only [Option.ne_none_iff_exists'] at h
-    obtain ⟨k₁, hk₁, j, hj⟩ := h
-    use k₁, hk₁, some j
-    intro k hk
-    induction k, hk using Nat.le_induction with
-    | base => exact hj
-    | succ k hk IH =>
-      -- The goal is to show `res (k+1) n = some j`. This is true because no
-      -- action in either `extend` call at stage `k` can occur at position
-      -- `≤ n`, and hence both calls preserve position `n`.
-      have k_ge : k ≥ k₀ := le_trans hk₁ hk
-      have k1_ge : k+1 ≥ k₀ := Nat.le_succ_of_le k_ge
-      -- `k` doesn't appear as a value in `res k`.
-      have no_k_in_r₀ (i : ℕ) : res k i ≠ some k :=
-        fun hi => lt_irrefl k (res_lt_stage k i k hi)
-      -- Unfold seq (k+1).
-      have hseq : seq (k+1) = _ := seq.eq_2 k
-      simp only [res, seq, Prod.map_snd, id_eq]
-      -- Introduce the two extend stages.
-      set u₀ := seq k with hu₀
-      set u₁ := extend (2 * ·) k u₀ with hu₁
-      set u₂ := Prod.map Prod.swap id u₁ with hu₂
-      have hr₀n : u₀.2.getI n = some j := IH
-      -- Show u₁.2.getI n = some j: first extend preserves position n.
-      have hr₁n : u₁.2.getI n = some j := by
-        rw [hu₁]
-        rcases hfw : findWitness? (2 * ·) k u₀ with - | ⟨e, y⟩
-        · simp [extend, hfw, hr₀n]
-        · -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
-          rwa [extend_snd_getI_lt hfw ?_]
-          by_contra! hle
-          rcases lt_or_eq_of_le hle with h2e_lt | rfl
-          · -- 2e < n: use stability + no_k_in_r₀.
-            obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
-            have hres_k : res k (2 * e) = o := ho k k_ge
-            have hres_k1 : res (k+1) (2 * e) = o := ho (k+1) k1_ge
-            -- After extend at stage k, value at 2e should appear as some k somewhere.
-            -- Position 2e in u₁ is some k. But this intermediate state is not `seq`.
-            -- We trace through second extend:
-            -- Either second extend doesn't act, or acts at some 2e'+1.
-            -- In either sub-case, the final value at some position ≤ n is some k,
-            -- contradicting no_k_in_r₀ via stability.
-            have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
-            rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e', y'⟩
-            · -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
-              have heq : res (k+1) (2 * e) = some k := by
-                simp only [res, hseq, extend, hfw2]
-                exact h1
-              rw [heq] at hres_k1
-              rw [← hres_k1] at hres_k
-              exact no_k_in_r₀ (2 * e) hres_k
-            · -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
-              by_cases! hord : 2 * e < 2 * e' + 1
-              · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
-                have heq : res (k+1) (2 * e) = some k := by
-                  simp only [res, hseq, Prod.map_snd, id_eq, extend_snd_getI_lt hfw2 hord]
-                  exact h1
-                rw [heq] at hres_k1
-                rw [← hres_k1] at hres_k
-                exact no_k_in_r₀ (2 * e) hres_k
-              · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
-                -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
-                obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) (hord.trans_lt h2e_lt)
-                have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
-                have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
-                -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
-                have heq : res (k+1) (2 * e' + 1) = some k :=
-                  extend_snd_getI_eq hfw2
-                rw [heq] at hres'_k1
-                rw [← hres'_k1] at hres'_k
-                exact no_k_in_r₀ (2 * e' + 1) hres'_k
-          · -- 2e = n
-            -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
-            rw [findWitness?_some_getI_eq_none hfw] at hr₀n
-            contradiction
-      -- Now show second extend preserves position n.
-      have hr₂n : u₂.2.getI n = some j := hr₁n
-      rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e, y⟩
-      · simp [extend, hfw2, hr₂n]
-      · rwa [extend_snd_getI_lt hfw2 ?_]
-        by_contra! hle
-        rcases lt_or_eq_of_le hle with h_lt | rfl
-        · -- 2e+1 < n.
-          obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
-          have hres_k : res k (2 * e + 1) = o := ho k k_ge
-          have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
-          have heq : res (k+1) (2 * e + 1) = some k :=
-            extend_snd_getI_eq hfw2
-          rw [heq] at hres_k1
-          rw [← hres_k1] at hres_k
-          exact no_k_in_r₀ (2 * e + 1) hres_k
-        · -- 2e+1 = n.
-          rw [findWitness?_some_getI_eq_none hfw2] at hr₂n
-          contradiction
+    · -- Otherwise, we find a `k₁ ≥ k₀` where the value is `some j`, and this value persists forever by `res_eq_some_of_stable_prefix`.
+      simp only [Option.ne_none_iff_exists'] at h
+      obtain ⟨k₁, hle, j, hk₁⟩ := h
+      exact ⟨k₁, hle, some j, res_eq_some_of_stable_prefix hk₀ hle hk₁⟩
 
 
 open Classical in
