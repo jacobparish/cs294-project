@@ -7,6 +7,10 @@ public import Project.Queries
 public import Project.Substitute
 public import Project.PartrecCode
 
+/--
+Notation for the pairing function `Nat.pair`.
+-/
+local notation "⟪" a ", " b "⟫" => Nat.pair a b
 
 namespace List
 
@@ -497,9 +501,44 @@ open Classical in
 If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
 -/
 lemma res_none_even {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = none)
-    : ∃ x, ¬ p1 x ∧ (ofNat Code e).eval (ofPred p2) x ≠ 0
+    : ∃ x, ¬ p1 x ∧ 0 ∉ (ofNat Code e).eval (ofPred p2) x
     := by
-  sorry
+  -- `v` is the last stage where a strategy `i < 2 * e` acts.
+  let v := Nat.find (finite_injury (2 * e))
+  have hv := Nat.find_spec (finite_injury (2 * e))
+  -- The witness `x` is `⟪e, y⟫`, where `y` is the smallest number `> v` such that `⟪e, y⟫ ∉ seq1 v`.
+  let g (y : ℕ) := v < y ∧ ⟪e, y⟫ ∉ seq1 v
+  have hg : ∃ y, g y := by
+    -- (This proof should be easy, since `g` defines a coinfinite set.)
+    sorry
+  let y := Nat.find hg
+  have hy : v < y ∧ ⟪e, y⟫ ∉ seq1 v := Nat.find_spec hg
+  use ⟪e, y⟫
+  constructor
+  · -- Suppose `⟪e, y⟫` is enumerated into `p1`. Let `k` be the stage where the enumeration occurs.
+    intro henum
+    set k := Nat.find henum with k_def
+    have hk : ⟪e, y⟫ ∈ seq1 k := Nat.find_spec henum
+    -- We know that `k` is a successor, so we destructure it.
+    rcases k with - | k
+    · contradiction
+    -- The fact that `⟪e, y⟫` was enumerated at stage `k+1` implies that it is the result of `findWitness?` on stage `k`.
+    have hfw : findWitness? (2 * ·) k (seq k) = (e, y) := by
+      sorry
+    -- Since `v < y`, this enumeration must have happened at a stage `> v` (might have an off by one error here).
+    have : v < k := by
+      refine hy.1.trans ?_
+      sorry
+    -- Since this strategy can never be injured after stage `v`, the requirement is satisfied forever.
+    have : ∀ j > k, res j (2 * e) = some k := by
+      intro j hj
+      -- This should be the same proof as the inductive step of `finite_injury`; the inductive hypothesis here is just `hv`. Hence that step should be extracted into a separate lemma.
+      sorry
+    -- This contradicts our provided hypothesis `h`.
+    sorry
+  · -- Suppose `e.eval p2 ⟪e, y⟫ = 0`.
+    intro heval
+    sorry
 
 open Classical in
 /--
@@ -545,7 +584,7 @@ theorem exists_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPre
     rcases o with - | j
     · obtain ⟨x, hx_neg, hx_ne⟩ := res_none_even ho
       use x
-      simpa [← hce, ofPred, hx_neg]
+      simpa [← hce, ofPred, hx_neg, Part.eq_some_iff]
     · obtain ⟨x, hx_pos, hx_eq⟩ := res_some_even ho
       use x
       simp [← hce, hx_eq, ofPred, hx_pos]
