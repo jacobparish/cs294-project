@@ -147,11 +147,71 @@ lemma primrec₂_findWitness? {f} (hf : Primrec f) : Primrec₂ (findWitness? f)
   · exact Primrec.list_product'.comp
       (.comp .list_range .fst) (.comp .list_range .fst)
   · simp only [Option.isNone_iff_eq_none, Option.mem_def, Bool.decide_and, decide_not]
+    -- Set up projections.
+    set I : Type := (ℕ × (List ℕ × List ℕ) × List (Option ℕ)) × ℕ × ℕ
+    have hk : Primrec (fun p : I => p.1.1) := Primrec.fst.comp Primrec.fst
+    have hp1 : Primrec (fun p : I => p.1.2.1.1) :=
+      Primrec.fst.comp (Primrec.fst.comp (Primrec.snd.comp Primrec.fst))
+    have hp2 : Primrec (fun p : I => p.1.2.1.2) :=
+      Primrec.snd.comp (Primrec.fst.comp (Primrec.snd.comp Primrec.fst))
+    have hr : Primrec (fun p : I => p.1.2.2) :=
+      Primrec.snd.comp (Primrec.snd.comp Primrec.fst)
+    have he : Primrec (fun p : I => p.2.1) := Primrec.fst.comp Primrec.snd
+    have hy : Primrec (fun p : I => p.2.2) := Primrec.snd.comp Primrec.snd
+    have hfe : Primrec (fun p : I => f p.2.1) := hf.comp he
+    have hpair : Primrec (fun p : I => Nat.pair p.2.1 p.2.2) :=
+      Primrec₂.natPair.comp he hy
     refine Primrec.and.comp ?_ (Primrec.and.comp ?_ (Primrec.and.comp ?_ ?_))
-    · sorry
-    · sorry
-    · sorry
-    · sorry
+    · -- decide (p.1.2.2.getI (f p.2.1) = none)
+      have h_get : Primrec (fun p : I => p.1.2.2.getI (f p.2.1)) :=
+        Primrec.list_getI.comp hr hfe
+      exact (Primrec.eq.comp h_get (Primrec.const none)).decide
+    · -- !decide (Nat.pair p.2.1 p.2.2 ∈ p.1.2.1.1)
+      have hmem_list : PrimrecRel (fun (l : List ℕ) (x : ℕ) => x ∈ l) :=
+        Primrec.eq.exists_mem_list.of_eq fun l b =>
+          ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
+      exact Primrec.not.comp (hmem_list.comp hp1 hpair).decide
+    · -- decide (evaln k (substPartrec ...) (Nat.pair e y) = some 0)
+      have h_ofNat : Primrec (fun p : I => (Denumerable.ofNat Code p.2.1)) :=
+        (Primrec.ofNat Code).comp he
+      have h_listMem : Primrec (fun p : I => Nat.Partrec.Code.listMem p.1.2.1.2) :=
+        Nat.Partrec.Code.primrec_listMem.comp hp2
+      have h_substP : Primrec (fun p : I =>
+          (Denumerable.ofNat Code p.2.1).substPartrec
+            (Nat.Partrec.Code.listMem p.1.2.1.2)) :=
+        Nat.RecursiveIn.Code.primrec₂_substPartrec.comp h_ofNat h_listMem
+      have h_evaln : Primrec (fun p : I => Nat.Partrec.Code.evaln p.1.1
+          ((Denumerable.ofNat Code p.2.1).substPartrec
+            (Nat.Partrec.Code.listMem p.1.2.1.2))
+          (Nat.pair p.2.1 p.2.2)) :=
+        Nat.Partrec.Code.primrec_evaln.comp ((Primrec.pair hk h_substP).pair hpair)
+      exact (Primrec.eq.comp h_evaln (Primrec.const (some 0))).decide
+    · -- decide (∀ i < f p.2.1, p.1.2.2.getI i < some (Nat.pair p.2.1 p.2.2))
+      -- We prove this as a primrec relation `R i (l, k) := l.getI i < some k`
+      -- and then apply `forall_mem_list` with `L = List.range (f e)`.
+      -- decide (o < some k) for o : Option ℕ is primrec via option_casesOn.
+      have h_optlt : Primrec (fun (a : Option ℕ × ℕ) => decide (a.1 < some a.2)) := by
+        have h₂ : Primrec₂ (fun (a : Option ℕ × ℕ) (n : ℕ) => decide (n < a.2)) :=
+          Primrec₂.comp Primrec.nat_lt.decide Primrec.snd
+            (Primrec.snd.comp Primrec.fst)
+        refine (Primrec.option_casesOn Primrec.fst (Primrec.const true) h₂).of_eq
+          fun ⟨o, k⟩ => ?_
+        cases o
+        · rfl
+        · rfl
+      -- Lift to a PrimrecRel R : ℕ → (List (Option ℕ) × ℕ) → Prop.
+      have hR_prim : PrimrecRel
+          (fun (i : ℕ) (lk : List (Option ℕ) × ℕ) => lk.1.getI i < some lk.2) := by
+        refine Primrec.primrecPred ?_
+        refine (h_optlt.comp (α := ℕ × (List (Option ℕ) × ℕ))
+          (Primrec.pair (Primrec.list_getI.comp (Primrec.fst.comp Primrec.snd) Primrec.fst)
+            (Primrec.snd.comp Primrec.snd))).of_eq fun p => rfl
+      -- ∀ i ∈ List.range n, R i lk
+      have h_all : PrimrecRel (fun (L : List ℕ) (lk : List (Option ℕ) × ℕ) =>
+          ∀ i ∈ L, lk.1.getI i < some lk.2) := hR_prim.forall_mem_list
+      have hrange : Primrec (fun p : I => List.range (f p.2.1)) := Primrec.list_range.comp hfe
+      refine ((h_all.comp hrange (Primrec.pair hr hpair)).decide).of_eq fun p => ?_
+      simp [List.mem_range]
 
 /--
 `extend` is primitive recursive (if the indexing function is).
