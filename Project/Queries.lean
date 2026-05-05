@@ -1,6 +1,7 @@
 module
 
 public import Project.OracleCode
+public import Project.Basic
 
 /-!
 # Oracle Query Tracking.
@@ -341,9 +342,23 @@ theorem evalq_dom_eq (c : Code) (o : ℕ →. ℕ) : (c.evalq o).Dom = (c.eval o
   apply evalq_dom_iff
 
 /--
+`queries` halts on `n` iff `eval` halts on `n`.
+-/
+theorem queries_dom_iff (c : Code) (o : ℕ →. ℕ) (n : ℕ) : (c.queries o n).Dom ↔ (c.eval o n).Dom :=
+  evalq_dom_iff c o n
+
+/--
+The domain of `queries` equals the domain of `eval`.
+-/
+theorem queries_dom_eq (c : Code) (o : ℕ →. ℕ) : (c.queries o).Dom = (c.eval o).Dom :=
+  evalq_dom_eq c o
+
+variable {c : Code}
+
+/--
 If `evalq c o n` halts, then the set of oracle queries made is contained in the domain of `o`.
 -/
-theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) : ↑((c.queries o n).get hn) ⊆ o.Dom := by
+theorem queries_subset_oracle_dom {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) : ↑((c.queries o n).get hn) ⊆ o.Dom := by
   induction c generalizing n with
   | zero | succ | left | right => simp
   | oracle =>
@@ -391,7 +406,7 @@ theorem queries_subset_oracle_dom {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : 
 /--
 The main theorem about `evalq`: if `evalq c o n` is defined and returns `(m, s)`, and if another oracle `o'` agrees with `o` on `s`, then `evalq c o n = evalq c o' n`.
 -/
-theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) {o' : ℕ →. ℕ} (ho' : ∀ i ∈ (c.queries o n).get hn, o i = o' i) : c.evalq o n = c.evalq o' n := by
+theorem evalq_eq_of_oracle_eq {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.evalq o).Dom) {o' : ℕ →. ℕ} (ho' : ∀ i ∈ (c.queries o n).get hn, o i = o' i) : c.evalq o n = c.evalq o' n := by
   induction c generalizing n with
   | zero | succ | left | right => simp [evalq]
   | oracle => simp_all [evalq, queries, Part.bind_some_eq_map]
@@ -451,6 +466,91 @@ theorem evalq_eq_of_oracle_eq {c : Code} {o : ℕ →. ℕ} {n : ℕ} (hn : n �
     simp [queries, evalq] at hi ⊢
     rw [Nat.rfindFold_snd_eq_fold hp]
     exact Finset.subset_fold_union _ (Nat.lt_succ_of_le hk) hi
+
+/--
+This is a version of `evalq_eq_of_oracle_eq` that only mentions `eval` and `queries`, which is more useful in practice.
+-/
+theorem eval_eq_of_oracle_eq {o : ℕ →. ℕ} {n : ℕ} (hn : n ∈ (c.eval o).Dom) {o' : ℕ →. ℕ}
+    (ho' : ∀ i ∈ (c.queries o n).get (by rwa [queries_dom_iff]), o i = o' i)
+    : c.eval o n = c.eval o' n := by
+  have hn' : n ∈ (c.queries o).Dom := by rwa [queries_dom_eq]
+  have := congr_arg (Prod.fst <$> ·) (evalq_eq_of_oracle_eq hn' ho')
+  rwa [← evalq_fst, ← evalq_fst]
+
+/--
+If `c.eval` halts on input `n` and outputs `x` given a restriction of oracle `o`, then it also halts on input `n` and outputs `x` given oracle `o` itself.
+-/
+lemma eval_restrict {o : ℕ →. ℕ} {p} (hp : p ⊆ o.Dom) {n x} (hx : x ∈ c.eval (o.restrict hp) n) : x ∈ c.eval o n := by
+  have hn : n ∈ (c.eval (o.restrict hp)).Dom := Part.dom_iff_mem.mpr ⟨x, hx⟩
+  have hn' : n ∈ (c.queries (o.restrict hp)).Dom := by rwa [queries_dom_eq]
+  let s := (c.queries (o.restrict hp) n).get hn'
+  have ho : ∀ i ∈ s, o.restrict hp i = o i := by
+    intro i hi
+    have := queries_subset_oracle_dom hn' hi
+    exact (Part.eq_iff_of_dom this (hp this)).mp rfl
+  rwa [← eval_eq_of_oracle_eq hn ho]
+
+/--
+A version of `eval_restrict` for `PFun.res` (restriction of a total function).
+-/
+lemma eval_res {o : ℕ → ℕ} {p} {n x} (hx : x ∈ c.eval (PFun.res o p) n) : x ∈ c.eval o n :=
+  eval_restrict _ hx
+
+/--
+This is perhaps the most familiar and usable statement of the use principle. A code `c` halts on input `n` and outputs `x` given an oracle `o`, if and only if for some `k`, `c` halts on input `n` and outputs `x` given the restriction of `o` to `Set.Iio k`. **For a total oracle, use `eval_iff_exists_eval_res` instead.**
+-/
+theorem eval_iff_exists_eval_restrict {o : ℕ →. ℕ} {n x} : x ∈ c.eval o n ↔ ∃ k : ℕ, x ∈ c.eval (PFun.restrict o (Set.Iio k).inter_subset_right) n := by
+  refine ⟨fun h => ?_, fun ⟨k, h⟩ => eval_restrict _ h⟩
+  have hn : n ∈ (c.eval o).Dom := Part.dom_iff_mem.mpr ⟨x, h⟩
+  let s := (c.queries o n).get (by rwa [queries_dom_iff])
+  -- `k` is the smallest natural number greater than every element of `s`.
+  let k := s.max.elim 0 Nat.succ
+  use k
+  set o' := PFun.restrict o (Set.Iio k).inter_subset_right
+  have ho' : ∀ i ∈ s, o i = o' i := by
+    intro i hi
+    obtain ⟨m, hm⟩ := s.max_of_mem hi
+    have hk : k = m+1 := by simp [k, hm, WithBot.some]
+    symm
+    rcases Part.eq_none_or_eq_some (o i) with hnone | ⟨y, hy⟩
+    · simp [hnone, Part.eq_none_iff, o']
+    · simp only [hk, hy, Part.eq_some_iff, PFun.mem_restrict, Set.mem_inter_iff, Set.mem_Iio,
+      PFun.mem_dom, Part.mem_some_iff, exists_eq, and_true, o']
+      by_contra! hle
+      exact s.notMem_of_max_lt (Nat.lt_of_succ_le hle) hm hi
+  rwa [← eval_eq_of_oracle_eq hn ho']
+
+/--
+This is another version of `eval_iff_exists_eval_res`.
+-/
+theorem eval_iff_eventually_eval_restrict {o : ℕ →. ℕ} {n x} : x ∈ c.eval o n ↔ ∃ k₀, ∀ k ≥ k₀, x ∈ c.eval (PFun.restrict o (Set.Iio k).inter_subset_right) n := by
+  refine ⟨fun h => ?_, fun ⟨k₀, h⟩ => eval_restrict _ (h k₀ le_rfl)⟩
+  obtain ⟨k₀, hk₀⟩ := eval_iff_exists_eval_restrict.mp h
+  use k₀
+  intro k hk
+  refine eval_restrict ?_ hk₀
+  simp only [PFun.dom_restrict]
+  refine Set.inter_subset_inter_left _ ?_
+  exact Set.Iio_subset_Iio hk
+
+/--
+This is a version of `eval_iff_exists_eval_restrict` for a total oracle.
+-/
+theorem eval_iff_exists_eval_res {o : ℕ → ℕ} {n x} : x ∈ c.eval o n ↔ ∃ k : ℕ, x ∈ c.eval (PFun.res o (Set.Iio k)) n := by
+  convert eval_iff_exists_eval_restrict
+  rw [PFun.res]
+  congr
+  simp [PFun.dom_coe]
+
+/--
+This is another version of `eval_iff_exists_eval_res`.
+-/
+theorem eval_iff_eventually_eval_res {o : ℕ → ℕ} {n x} : x ∈ c.eval o n ↔ ∃ k₀, ∀ k ≥ k₀, x ∈ c.eval (PFun.res o (Set.Iio k)) n := by
+  refine ⟨fun h => ?_, fun ⟨k₀, h⟩ => eval_res (h k₀ le_rfl)⟩
+  obtain ⟨k₀, hk₀⟩ := eval_iff_exists_eval_res.mp h
+  use k₀
+  intro k hk
+  exact eval_restrict (fun j hj => lt_of_lt_of_le hj hk) hk₀
 
 end Nat.RecursiveIn.Code
 
