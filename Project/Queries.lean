@@ -540,17 +540,16 @@ theorem eval_iff_exists_eval_res {o : ℕ → ℕ} {n x} : x ∈ c.eval o n ↔ 
   convert eval_iff_exists_eval_restrict
   rw [PFun.res]
   congr
-  simp [PFun.dom_coe]
+  simp
 
 /--
 This is another version of `eval_iff_exists_eval_res`.
 -/
 theorem eval_iff_eventually_eval_res {o : ℕ → ℕ} {n x} : x ∈ c.eval o n ↔ ∃ k₀, ∀ k ≥ k₀, x ∈ c.eval (PFun.res o (Set.Iio k)) n := by
-  refine ⟨fun h => ?_, fun ⟨k₀, h⟩ => eval_res (h k₀ le_rfl)⟩
-  obtain ⟨k₀, hk₀⟩ := eval_iff_exists_eval_res.mp h
-  use k₀
-  intro k hk
-  exact eval_restrict (fun j hj => lt_of_lt_of_le hj hk) hk₀
+  convert eval_iff_eventually_eval_restrict
+  rw [PFun.res]
+  congr
+  simp
 
 end Nat.RecursiveIn.Code
 
