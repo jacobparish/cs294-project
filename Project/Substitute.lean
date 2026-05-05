@@ -169,8 +169,7 @@ theorem evaln_substPartrec (c : Code) {c₁ c₂ : Partrec.Code} {k : ℕ} (hres
         simp [substPartrec, Partrec.Code.evaln, Option.bind_eq_some_iff] at hx₁ hx₂
         obtain ⟨-, y₁, hy₁, hx₁⟩ := hx₁
         obtain ⟨-, y₂, hy₂, hx₂⟩ := hx₂
-        rw [← substPartrec] at hy₁ hy₂
-        rw [IHk _ hres' hy₁ hy₂] at hx₁
+        rw [IHk (cf.prec cg) hres' hy₁ hy₂] at hx₁
         exact IHcg hx₁ hx₂
     | rfind' cf IHcf =>
       simp [substPartrec, Partrec.Code.evaln, Option.bind_eq_some_iff] at hx₁ hx₂
@@ -179,10 +178,7 @@ theorem evaln_substPartrec (c : Code) {c₁ c₂ : Partrec.Code} {k : ℕ} (hres
       rw [IHcf hy₁ hy₂] at hx₁
       cases y₂ with
       | zero => simp_all
-      | succ y₂ =>
-        simp at hx₁ hx₂
-        rw [← substPartrec] at hx₁ hx₂
-        exact IHk _ hres' hx₁ hx₂
+      | succ y₂ => exact IHk cf.rfind' hres' hx₁ hx₂
 
 end Nat.RecursiveIn.Code
 
