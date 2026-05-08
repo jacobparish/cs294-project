@@ -1,3 +1,9 @@
+/-
+Copyright (c) 2026 Jacob Parish and Yvette Ren. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jacob Parish, Yvette Ren.
+-/
+
 module
 
 public import Project.OracleCode
