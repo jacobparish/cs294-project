@@ -1,42 +1,16 @@
 module
 
-public import Mathlib.Computability.Halting
-public import Mathlib.Data.List.GetD
 public import Project.OracleCode
 public import Project.Queries
 public import Project.Substitute
 public import Project.PartrecCode
+public import Project.List
+public import Project.RE
 
 /--
 Notation for the pairing function `Nat.pair`.
 -/
 local notation "⟪" a ", " b "⟫" => Nat.pair a b
-
-namespace List
-
-/-
-TODO: move list helper lemmas to a different file?
--/
-
-/--
-Helper: if `i < n`, then `(l.takeI n).getI i = l.getI i`.
--/
-private lemma getI_takeI {α : Type*} [Inhabited α] :
-    ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i
-  | _, 0, _, hi => by omega
-  | [], n+1, i, hi => by
-    rw [List.takeI_nil, List.getI_nil]
-    have hlen : i < (List.replicate (n+1) (default : α)).length := by
-      rw [List.length_replicate]; exact hi
-    rw [List.getI_eq_getElem _ hlen]
-    simp
-  | _::_, _+1, 0, _ => rfl
-  | _::xs, n+1, i+1, hi => by
-    show (_ :: xs.takeI n).getI (i+1) = _
-    rw [List.getI_cons_succ, List.getI_cons_succ]
-    exact List.getI_takeI xs n i (Nat.lt_of_succ_lt_succ hi)
-
-end List
 
 namespace Computability
 
@@ -324,24 +298,6 @@ lemma primrec_seq1 : Primrec seq1 :=
 -/
 lemma primrec_seq2 : Primrec seq2 :=
   Primrec.snd.comp (Primrec.fst.comp primrec_seq)
-
-/--
-If a sequence `s : ℕ → List ℕ` is primitive recursive, then the predicate `fun n => ∃ k, n ∈ s k` is RE.
--/
-lemma re_of_primrec_seq {s : ℕ → List ℕ} (hs : Primrec s) : REPred (fun x => ∃ k, x ∈ s k) := by
-  -- `x ∈ l` is a primitive recursive relation in `(l, x)`.
-  have hmem_list : PrimrecRel (fun (l : List ℕ) (x : ℕ) => x ∈ l) :=
-    Primrec.eq.exists_mem_list.of_eq fun l b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
-  have hmem_seq : PrimrecRel (fun x k => x ∈ s k) :=
-    hmem_list.comp (hs.comp Primrec.snd) Primrec.fst
-  have hpartrec : Partrec₂ fun x k => Part.some (decide (x ∈ s k)) :=
-    hmem_seq.decide.to₂.to_comp.partrec₂
-  -- Nat.rfind (fun k => Part.some (decide (x ∈ s k))) has domain p1 x
-  refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
-  simp only [Nat.rfind_dom, Part.mem_some_iff]
-  constructor
-  · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
-  · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
 
 /--
 The predicate `p1` is RE.
