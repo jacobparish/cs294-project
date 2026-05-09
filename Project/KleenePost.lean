@@ -63,7 +63,7 @@ end List
 
 namespace TuringDegree
 
-open RecursiveIn
+open Computability RecursiveIn
 
 noncomputable section
 
