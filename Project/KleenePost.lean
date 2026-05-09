@@ -273,11 +273,10 @@ lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
 /--
 The **Kleene-Post Theorem**: there exist two incomparable Turing degrees.
 -/
-theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) ∧ ¬(b ≤ a) := by
+theorem exists_incomparable_turingDegrees : ∃ f g : ℕ → ℕ, ¬(f ≤ᵀ g) ∧ ¬(g ≤ᵀ f) := by
   let f := List.limit seq1 lt_length_seq1
   let g := List.limit seq2 lt_length_seq2
-  use ⟦f⟧, ⟦g⟧
-  change ¬TuringReducible f g ∧ ¬TuringReducible g f
+  use f, g
   constructor <;> rw [Code.exists_code] <;> intro ⟨c, hc⟩
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
