@@ -13,8 +13,6 @@ namespace List
 
 /--
 Given a sequence of lists `s : ℕ → List α` such that `n < (s n).length` for every `n`, we can define their limit: `limit s hs n` is defined to be `(s n)[n]`.
-
-TODO: does something like this already exist in mathlib?
 -/
 def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
   fun n => (s n).get ⟨n, hs n⟩
