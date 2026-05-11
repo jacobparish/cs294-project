@@ -116,7 +116,7 @@ lemma res_lt_stage {k n m : ℕ} (h : res k n = .some m) : m < k := by
     exact (IH h').le
 
 /--
-If `res (k+1) i = some m`, then either `m < k` and `res k i = some m`, or `m = k` and `res k i = none`.
+If `res (k+1) ⟪i, e⟫ = some m`, then either `m < k` and `res k ⟪i, e⟫ = some m`, or `m = k` and `res k ⟪i, e⟫ = ⊥`. In the latter case, this also gives information about the result of `findWitness?`.
 -/
 lemma res_lt_or_eq {k i e m : ℕ} (h : res (k+1) ⟪i, e⟫ = .some m)
     : (m < k ∧ res k ⟪i, e⟫ = .some m)
@@ -247,7 +247,7 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ m < n, IsStableAfter m k₀ := by
 open Filter
 
 /--
-This is a version/consequence of the use principle. If `s k` is an increasing sequence of lists, then a code `c` halts on input `n` given oracle `⋃ k, s k`, if and only if there is some `k₀` such that for all `i,k ≥ k₀`, `c` halts on input `n` in `< i` steps given oracle `s k`.
+This is a version/consequence of the use principle. If `f k` is a sequence of functions converging pointwise to `g`, then a code `c` halts on input `n` given oracle `g`, if and only if there is some `k₀` such that for all `t,k ≥ k₀`, `c` halts on input `n` in `< t` steps given oracle `f k`.
 
 Remark: The right-to-left direction would be false if we replaced the right side with `∃ k₀, ∀ k ≥ k₀, ...`. A *uniform* bound on time is necessary.
 -/
@@ -457,10 +457,9 @@ lemma res_some {i e k₀ m : ℕ} (h : ∀ k ≥ k₀, res k ⟪i, e⟫ = .some 
   obtain ⟨hm, -, rfl, y, hfw⟩ := res_set_at_stage (h k₀ le_rfl)
   -- Merge the interval `(m,k₀]` provided by `res_set_at_stage` with the interval `[k₀,∞)` provided by `h`.
   replace hm : ∀ k > m, res k ⟪m.unpair.1, e⟫ = .some m := by grind
-  clear k₀ h
-  have hfw_spec := List.find?_some hfw
-  simp [isWitness_iff, -Option.mem_def] at hfw_spec
-  obtain ⟨-, -, hevaln, -⟩ := hfw_spec
+  have hiw := List.find?_some hfw
+  simp [isWitness_iff, -Option.mem_def] at hiw
+  obtain ⟨-, -, hevaln, -⟩ := hiw
   -- The witness `x` is `⟪e, y⟫`.
   refine ⟨⟪e, y⟫, ?_, ?_⟩
   · -- Show `fmPred i ⟪e, y⟫` holds.
@@ -475,19 +474,20 @@ lemma res_some {i e k₀ m : ℕ} (h : ∀ k ≥ k₀, res k ⟪i, e⟫ = .some 
     apply Code.evalp_mono ht at hevaln
     refine Code.evalp_mono_in_oracle ?_ hevaln
     simp [ht]
-    rcases hk.lt_or_eq with hk_lt | rfl; swap
-    · simp
-    have : approxOracle m.unpair.1 (m+1) = approxOracle m.unpair.1 m := by
-      simp [approxOracle, approx, stage, extend, hfw]
-    rw [← this]
     intro n hn
     have := n.pair_unpair
-    generalize n.unpair.1 = q, n.unpair.2 = q' at this
+    generalize n.unpair.1 = n₁, n.unpair.2 = n₂ at this
     subst this
-    have := approx_eq_of_res_eventually_eq_some hm ⟪q,q'⟫ hn.le k hk_lt
-    simp [approxOracle]
-    simp at this
-    simp [this]
+    rcases hk.eq_or_lt with rfl | hk_lt
+    · rfl
+    -- The `i`th oracle approximation does not change between `m` and `m+1`, since the witness is added to the `i`th set.
+    have hmsucc : approxOracle m.unpair.1 m = approxOracle m.unpair.1 (m+1) := by
+      simp [approxOracle, approx, stage, extend, hfw]
+    rw [hmsucc]
+    -- Now after stage `m+1`, the values of `approx` below `m` are not modified: they are restrained due to `res · ⟪i,e⟫ = some m`. So the same holds for `approxOracle`.
+    have h_approx_eq := approx_eq_of_res_eventually_eq_some hm ⟪n₁,n₂⟫ hn.le k hk_lt
+    simp only [Nat.unpair_pair] at h_approx_eq
+    simp [approxOracle, h_approx_eq]
 
 open Classical in
 /--

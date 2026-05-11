@@ -116,21 +116,21 @@ For each `i`, `fmOracle i : ℕ → Prop` is the oracle obtained by zeroing out 
 def fmOracle (i x : ℕ) : Prop := ∃ k, x ∈ approxOracle i k
 
 /--
-The sequence of approxiations is monotone.
+The sequence of approximations is monotone.
 -/
-lemma approx_mono (n : ℕ) : approx n ⊆ approx (n+1) :=
+lemma approx_mono (k : ℕ) : approx k ⊆ approx (k+1) :=
   subset_extend
 
 /--
-Each sequence of oracle approxiations is monotone.
+Each sequence of oracle approximations is monotone.
 -/
-lemma approxOracle_mono (i n : ℕ) : approxOracle i n ⊆ approxOracle i (n+1) :=
-  List.map_subset _ (List.filter_subset _ (approx_mono n))
+lemma approxOracle_mono (i k : ℕ) : approxOracle i k ⊆ approxOracle i (k+1) :=
+  List.map_subset _ (List.filter_subset _ (approx_mono k))
 
 /--
-The restraint table. `res n m = some j` if the requirement corresponding to `n` was satisfied at an earlier stage `j < n`, and not injured since then. Otherwise, `res n m = ⊥`.
+The restraint table. `res k n = some m` if the requirement corresponding to `n` was satisfied at an earlier stage `m < k`, and not injured since then. Otherwise, `res k n = ⊥`.
 -/
-def res (n m : ℕ) : WithBot ℕ := (stage n).2.getI m
+def res (k n : ℕ) : WithBot ℕ := (stage k).2.getI n
 
 @[simp]
 lemma res_zero (n : ℕ) : res 0 n = ⊥ := rfl
