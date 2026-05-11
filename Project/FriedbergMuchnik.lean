@@ -1,539 +1,488 @@
-module
+import Project.Basic
+import Project.OracleCode
+import Project.Evaln
+import Project.List
+import Project.Primrec
+import Project.RE
+import Mathlib.Order.Filter.AtTopBot.Basic
+import Mathlib.Order.Filter.Finite
 
-public import Mathlib.Computability.Halting
-public import Mathlib.Data.List.GetD
-public import Project.OracleCode
-public import Project.Queries
-public import Project.Substitute
-public import Project.PartrecCode
+namespace Primcodable
+
+instance {α : Type*} [Primcodable α] : Primcodable (WithBot α) :=
+  Primcodable.option
+
+end Primcodable
+
+namespace Computability.FriedbergMuchnik
 
 /--
 Notation for the pairing function `Nat.pair`.
 -/
 local notation "⟪" a ", " b "⟫" => Nat.pair a b
 
-namespace List
-
-/-
-TODO: move list helper lemmas to a different file?
--/
-
-/--
-Helper: if `i < n`, then `(l.takeI n).getI i = l.getI i`.
--/
-private lemma getI_takeI {α : Type*} [Inhabited α] :
-    ∀ (l : List α) (n i : ℕ), i < n → (l.takeI n).getI i = l.getI i
-  | _, 0, _, hi => by omega
-  | [], n+1, i, hi => by
-    rw [List.takeI_nil, List.getI_nil]
-    have hlen : i < (List.replicate (n+1) (default : α)).length := by
-      rw [List.length_replicate]; exact hi
-    rw [List.getI_eq_getElem _ hlen]
-    simp
-  | _::_, _+1, 0, _ => rfl
-  | _::xs, n+1, i+1, hi => by
-    show (_ :: xs.takeI n).getI (i+1) = _
-    rw [List.getI_cons_succ, List.getI_cons_succ]
-    exact List.getI_takeI xs n i (Nat.lt_of_succ_lt_succ hi)
-
-end List
-
-namespace Computability
-
 open Nat.RecursiveIn Denumerable
-
--- TODO: Why are the following instances not in mathlib?
-
-instance {α} [LE α] [DecidableLE α] : DecidableLE (Option α) := fun a b => by
-  cases a <;> cases b <;> simp <;> infer_instance
-
-instance {α} [LT α] [DecidableLT α] : DecidableLT (Option α) := fun a b => by
-  cases a <;> cases b <;> simp <;> infer_instance
 
 /--
 The type carrying the data for each stage of the Friedberg-Muchnik construction. This is usually unpacked as `(p, r)`. See `extend` for the interpretation of `p` and `r`.
 -/
-abbrev FMStage := (List ℕ × List ℕ) × List (Option ℕ)
+abbrev FMStage := List (ℕ × ℕ) × List (WithBot ℕ)
 
 /--
 See `extend` for a description of the parameters.
 -/
-def findWitness? (f : ℕ → ℕ) (k : ℕ) : FMStage → Option (ℕ × ℕ) := fun (p, r) =>
-  -- `List.Product` is ordered so that this checks all `y`-values for `e = 0`, then all `y`-values for `e = 1`, and so on.
-  List.product (.range k) (.range k) |>.find? fun (e, y) =>
-    -- We need the requirement `Rₑ` to not already be satisfied, as well as a witness `x = ⟪e, y⟫` such that:
-    -- (1) `x` is not already enumerated into `p.1`,
-    -- (2) the eval of the code encoded by `e` with oracle `p.2` halts in `< k` steps and outputs `x`, and
-    -- (3) `r[i] < x` for every `i < f e`.
-    (r.getI (f e)).isNone
-      ∧ ⟪e, y⟫ ∉ p.1
-      ∧ 0 ∈ ((ofNat Code e).substPartrec (.listMem p.2)).evaln k ⟪e, y⟫
-      ∧ ∀ i < f e, r.getI i < ⟪e, y⟫
+def isWitness (i k : ℕ) : FMStage → (ℕ × ℕ) → Bool
+  | (p, r), (e, y) =>
+  -- We need requirement `⟪i, e⟫` to not currently be satisfied (`r[⟪i, e⟫] = ⊥`), as well as a witness `x = ⟪e, y⟫` such that:
+  -- (1) `x` is not already enumerated into `p[i]`,
+  -- (2) the eval of the code encoded by `e` with oracle `p[≠ i]` halts in `< k` steps and outputs `x`, and
+  -- (3) `r[n] < x` for every `n < ⟪i, e⟫`.
+  r.getI ⟪i, e⟫ = ⊥
+    ∧ (i, ⟪e, y⟫) ∉ p
+    ∧ 0 ∈ (ofNat Code e).evaln k (Nat.unpaired fun i' x' => if i ≠ i' ∧ (i', x') ∈ p then 1 else 0) ⟪e, y⟫
+    ∧ ∀ n < ⟪i, e⟫, r.getI n < .some ⟪e, y⟫
+
+/--
+See `extend` for a description of the parameters.
+-/
+def findWitness? (i k : ℕ) (s : FMStage) : Option (ℕ × ℕ) :=
+  -- `List.product` is ordered so that this checks all `y`-values for `e = 0`, then all `y`-values for `e = 1`, and so on.
+  (List.range k) ×ˢ (List.range k) |>.find? (isWitness i k s)
 
 /--
 The roles of the parameters are as follows:
-* `p = (p.1, p.2)` : The pair of finite sets (represented as lists) enumerated so far. In this stage, we are trying to ensure that `p.1` is not computable relative to `p.2`.
+* `p` : The finite sets enumerated so far, encoded as list of `ℕ × ℕ`, where the first coordinate is the index of the set, and the second coordinate is the element of the set. We write `p.i` for the `i`th set.
+* `i` : The index of the set being extended at this stage. We try to ensure that `p.i` is not computable relative to `p.(≠ i)`.
 * `k` : A bound on (1) the number of codes to check at this stage, (2) the number of witnesses to check at this stage, and (3) the number of steps to run `evaln` at this stage.
-* `f` : The index from a code into the restraint list `r`.
-* `r` : The list of restraints. `r[f e] = none` (or the index is out of bounds) if requirement `Rₑ` is not currently satisfied. `r[f e] = some j'` if requirement `Rₑ` has been satisfied at some earlier stage `j < k`, and has not been injured since then.
+* `r` : The list of restraints. `r[⟪i, e⟫] = ⊥` (or the index is out of bounds) if requirement `⟪i, e⟫` is not currently satisfied. `r[⟪i, e⟫] = some j'` if requirement `⟪i, e⟫` has been satisfied at some earlier stage `j < k`, and has not been injured since then.
 -/
-def extend (f : ℕ → ℕ) (k : ℕ) : FMStage → FMStage := fun (p, r) =>
-  match findWitness? f k (p, r) with
+def extend (i k : ℕ) (s : FMStage) :=
+  match findWitness? i k s with
   -- If no strategy needs to act, then do nothing.
-  | none => (p, r)
-  -- If `Rₑ` needs to act, then add the witness to `p.1`. Also, injure all strategies `Rᵢ` for `i > f e`, and set `r[f e] = some k`.
-  | some (e, y) => ((⟪e, y⟫ :: p.1, p.2), r.takeI (f e) ++ [some k])
-
-lemma extend_fst {f k u} : u.1.1 ⊆ (extend f k u).1.1 := by
-  simp only [extend]
-  cases findWitness? f k u with simp
-
-lemma extend_snd {f k u} : (extend f k u).1.2 = u.1.2 := by
-  simp only [extend]
-  cases findWitness? f k u with rfl
-
-/-!
-### Helper primrec lemmas
-
-The following three lemmas are standard facts that are not (yet) in Mathlib:
-primitive recursiveness of `List.takeI`, `List.product`, and a binary version of
-`List.find?`. They are held as `sorry` so the main proofs below may depend on them.
--/
-
-private theorem Primrec.list_takeI {α : Type*} [Inhabited α] [Primcodable α] :
-    Primrec₂ (fun (l : List α) (n : ℕ) => l.takeI n) := by
-  -- Use the equivalent formulation: `l.takeI n = (List.range n).map (fun i => l.getI i)`.
-  have h : Primrec (fun (p : List α × ℕ) => (List.range p.2).map (fun i => p.1.getI i)) := by
-    apply Primrec.list_map (Primrec.list_range.comp Primrec.snd)
-    exact Primrec.list_getI.comp (Primrec.fst.comp Primrec.fst) Primrec.snd
-  refine h.to₂.of_eq fun l n => ?_
-  apply List.ext_getElem
-  · rw [List.length_map, List.length_range, List.takeI_length]
-  · intro i _ hi
-    rw [List.getElem_map, List.getElem_range]
-    rw [List.takeI_length] at hi
-    rw [← List.getI_eq_getElem _ (by rw [List.takeI_length]; exact hi)]
-    exact (List.getI_takeI l n i hi).symm
-
-private theorem Primrec.list_product' {α β : Type*} [Primcodable α] [Primcodable β] :
-    Primrec₂ (List.product : List α → List β → List (α × β)) := by
-  -- `List.product l₁ l₂ = l₁.flatMap (fun a => l₂.map (Prod.mk a))`.
-  refine Primrec.list_flatMap .fst ?_
-  refine Primrec.list_map (.comp .snd .fst) ?_
-  exact Primrec.pair (.comp .snd .fst) .snd
-
-private theorem Primrec.list_find?' {α β : Type*} [Primcodable α] [Primcodable β]
-    {f : α → List β} {p : α → β → Bool}
-    (hf : Primrec f) (hp : Primrec₂ p) :
-    Primrec (fun a => (f a).find? (p a)) := by
-  -- Use the equivalence `l.find? p = l[l.findIdx p]?`.
-  have h_idx : Primrec (fun a => (f a).findIdx (p a)) := Primrec.list_findIdx hf hp
-  have h_get : Primrec (fun a => (f a)[(f a).findIdx (p a)]?) :=
-    Primrec.list_getElem?.comp hf h_idx
-  refine h_get.of_eq fun a => ?_
-  -- Show: (f a)[(f a).findIdx (p a)]? = (f a).find? (p a)
-  generalize (f a) = l
-  generalize (p a) = q
-  clear hf hp h_idx h_get f p
-  induction l with
-  | nil => rfl
-  | cons b t IH =>
-    by_cases hb : q b
-    · simp [List.findIdx_cons, hb]
-    · simp [List.findIdx_cons, hb]
-      exact IH
+  | none => s
+  -- If strategy `⟪i, e⟫` needs to act, then add the witness to `p.i`. Also, injure all strategies with lower priority than `⟪i, e⟫`, and set `r[⟪i, e⟫] = some k`.
+  | some (e, y) => ((i, ⟪e, y⟫) :: s.1, s.2.takeI ⟪i, e⟫ ++ [WithBot.some k])
 
 /--
-`findWitness?` is primitive recursive (if the indexing function is).
-The structure is: apply `list_find?'` to the Cartesian product `range k × range k`, with
-a predicate combining (isNone restraint) ∧ (witness not yet enumerated) ∧ (evaln halts to 0)
-∧ (bounded restraint check). The predicate composition runs into typeclass resolution
-timeouts, so we hold the proof as `sorry` pending optimisation.
+`extend` is monotone in the first coordinate of `FMStage`.
 -/
-lemma primrec₂_findWitness? {f} (hf : Primrec f) : Primrec₂ (findWitness? f) := by
-  refine Primrec.list_find?' ?_ ?_
-  · exact Primrec.list_product'.comp
-      (.comp .list_range .fst) (.comp .list_range .fst)
-  · simp only [Option.isNone_iff_eq_none, Option.mem_def, Bool.decide_and, decide_not]
-    -- Set up projections.
-    set I : Type := (ℕ × (List ℕ × List ℕ) × List (Option ℕ)) × ℕ × ℕ
-    have hk : Primrec (fun p : I => p.1.1) := Primrec.fst.comp Primrec.fst
-    have hp1 : Primrec (fun p : I => p.1.2.1.1) :=
-      Primrec.fst.comp (Primrec.fst.comp (Primrec.snd.comp Primrec.fst))
-    have hp2 : Primrec (fun p : I => p.1.2.1.2) :=
-      Primrec.snd.comp (Primrec.fst.comp (Primrec.snd.comp Primrec.fst))
-    have hr : Primrec (fun p : I => p.1.2.2) :=
-      Primrec.snd.comp (Primrec.snd.comp Primrec.fst)
-    have he : Primrec (fun p : I => p.2.1) := Primrec.fst.comp Primrec.snd
-    have hy : Primrec (fun p : I => p.2.2) := Primrec.snd.comp Primrec.snd
-    have hfe : Primrec (fun p : I => f p.2.1) := hf.comp he
-    have hpair : Primrec (fun p : I => Nat.pair p.2.1 p.2.2) :=
-      Primrec₂.natPair.comp he hy
-    refine Primrec.and.comp ?_ (Primrec.and.comp ?_ (Primrec.and.comp ?_ ?_))
-    · -- decide (p.1.2.2.getI (f p.2.1) = none)
-      have h_get : Primrec (fun p : I => p.1.2.2.getI (f p.2.1)) :=
-        Primrec.list_getI.comp hr hfe
-      exact (Primrec.eq.comp h_get (Primrec.const none)).decide
-    · -- !decide (Nat.pair p.2.1 p.2.2 ∈ p.1.2.1.1)
-      have hmem_list : PrimrecRel (fun (l : List ℕ) (x : ℕ) => x ∈ l) :=
-        Primrec.eq.exists_mem_list.of_eq fun l b =>
-          ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
-      exact Primrec.not.comp (hmem_list.comp hp1 hpair).decide
-    · -- decide (evaln k (substPartrec ...) (Nat.pair e y) = some 0)
-      have h_ofNat : Primrec (fun p : I => (Denumerable.ofNat Code p.2.1)) :=
-        (Primrec.ofNat Code).comp he
-      have h_listMem : Primrec (fun p : I => Nat.Partrec.Code.listMem p.1.2.1.2) :=
-        Nat.Partrec.Code.primrec_listMem.comp hp2
-      have h_substP : Primrec (fun p : I =>
-          (Denumerable.ofNat Code p.2.1).substPartrec
-            (Nat.Partrec.Code.listMem p.1.2.1.2)) :=
-        Nat.RecursiveIn.Code.primrec₂_substPartrec.comp h_ofNat h_listMem
-      have h_evaln : Primrec (fun p : I => Nat.Partrec.Code.evaln p.1.1
-          ((Denumerable.ofNat Code p.2.1).substPartrec
-            (Nat.Partrec.Code.listMem p.1.2.1.2))
-          (Nat.pair p.2.1 p.2.2)) :=
-        Nat.Partrec.Code.primrec_evaln.comp ((Primrec.pair hk h_substP).pair hpair)
-      exact (Primrec.eq.comp h_evaln (Primrec.const (some 0))).decide
-    · -- decide (∀ i < f p.2.1, p.1.2.2.getI i < some (Nat.pair p.2.1 p.2.2))
-      -- We prove this as a primrec relation `R i (l, k) := l.getI i < some k`
-      -- and then apply `forall_mem_list` with `L = List.range (f e)`.
-      -- decide (o < some k) for o : Option ℕ is primrec via option_casesOn.
-      have h_optlt : Primrec (fun (a : Option ℕ × ℕ) => decide (a.1 < some a.2)) := by
-        have h₂ : Primrec₂ (fun (a : Option ℕ × ℕ) (n : ℕ) => decide (n < a.2)) :=
-          Primrec₂.comp Primrec.nat_lt.decide Primrec.snd
-            (Primrec.snd.comp Primrec.fst)
-        refine (Primrec.option_casesOn Primrec.fst (Primrec.const true) h₂).of_eq
-          fun ⟨o, k⟩ => ?_
-        cases o
-        · rfl
-        · rfl
-      -- Lift to a PrimrecRel R : ℕ → (List (Option ℕ) × ℕ) → Prop.
-      have hR_prim : PrimrecRel
-          (fun (i : ℕ) (lk : List (Option ℕ) × ℕ) => lk.1.getI i < some lk.2) := by
-        refine Primrec.primrecPred ?_
-        refine (h_optlt.comp (α := ℕ × (List (Option ℕ) × ℕ))
-          (Primrec.pair (Primrec.list_getI.comp (Primrec.fst.comp Primrec.snd) Primrec.fst)
-            (Primrec.snd.comp Primrec.snd))).of_eq fun p => rfl
-      -- ∀ i ∈ List.range n, R i lk
-      have h_all : PrimrecRel (fun (L : List ℕ) (lk : List (Option ℕ) × ℕ) =>
-          ∀ i ∈ L, lk.1.getI i < some lk.2) := hR_prim.forall_mem_list
-      have hrange : Primrec (fun p : I => List.range (f p.2.1)) := Primrec.list_range.comp hfe
-      refine ((h_all.comp hrange (Primrec.pair hr hpair)).decide).of_eq fun p => ?_
-      simp [List.mem_range]
+lemma subset_extend {i k s} : s.1 ⊆ (extend i k s).1 := by
+  unfold extend
+  rcases findWitness? i k s with - | ⟨e, y⟩
+  · exact List.Subset.refl _
+  · exact List.subset_cons_self _ _
 
 /--
-`extend` is primitive recursive (if the indexing function is).
+`isWitness` is primitive recursive.
 -/
-lemma primrec₂_extend {f} (hf : Primrec f) : Primrec₂ (extend f) := by
-  set A : Type := ℕ × (List ℕ × List ℕ) × List (Option ℕ)
+lemma primrec₂_isWitness : Primrec₂ (fun (a : ℕ × ℕ × FMStage) (x : ℕ × ℕ) => isWitness a.1 a.2.1 a.2.2 x) := by
+  -- Set up projections.
+  set I : Type := (ℕ × ℕ × FMStage) × (ℕ × ℕ)
+  have hi : Primrec (fun p : I => p.1.1) := .comp .fst .fst
+  have hk : Primrec (fun p : I => p.1.2.1) := .comp .fst (.comp .snd .fst)
+  have hp : Primrec (fun p : I => p.1.2.2.1) :=
+    .comp .fst (.comp .snd (.comp .snd .fst))
+  have hr : Primrec (fun p : I => p.1.2.2.2) :=
+    .comp .snd (.comp .snd (.comp .snd .fst))
+  have he : Primrec (fun p : I => p.2.1) := .comp .fst .snd
+  have hy : Primrec (fun p : I => p.2.2) := .comp .snd .snd
+  have hie : Primrec (fun p : I => Nat.pair p.1.1 p.2.1) :=
+    Primrec₂.natPair.comp hi he
+  have hey : Primrec (fun p : I => Nat.pair p.2.1 p.2.2) :=
+    Primrec₂.natPair.comp he hy
+  simp only [isWitness, Option.mem_def, Bool.decide_and, decide_not]
+  refine Primrec.and.comp ?_ (Primrec.and.comp ?_ (Primrec.and.comp ?_ ?_))
+  · refine (Primrec.eq.comp ?_ (.const none)).decide
+    exact Primrec.list_getI.comp hr hie
+  · refine Primrec.not.comp ?_
+    exact (Primrec.list_mem.comp hp (.pair hi hey)).decide
+  · simp only [Code.evaln]
+    refine (Primrec.eq.comp ?_ (.const _)).decide
+    have hcode : Primrec fun p : I => ofNat Code p.2.1 := (Primrec.ofNat Code).comp he
+    have hlist : Primrec fun p : I => List.ofFnNat (Nat.unpaired fun i' x' => if p.1.1 ≠ i' ∧ (i', x') ∈ p.1.2.2.1 then 1 else 0) p.1.2.1 := by
+      refine Primrec.list_ofFnNat ?_ hk
+      simp only [Primrec₂, Nat.unpaired]
+      refine Primrec.ite (.and (.not ?_) ?_) (.const 1) (.const 0)
+      · refine Primrec.eq.comp ?_ ?_
+        · exact hi.comp .fst
+        · exact .comp .fst (.comp .unpair .snd)
+      · refine Primrec.list_mem.comp ?_ ?_
+        · exact hp.comp .fst
+        · refine .pair ?_ ?_
+          · exact .comp .fst (.comp .unpair .snd)
+          · exact .comp .snd (.comp .unpair .snd)
+    exact Code.primrec_evalp.comp (.pair (.pair hk (.pair hcode hlist)) hey)
+  · -- `∀ n < ⟪i, e⟫, r.getI i < .some ⟪e, y⟫`
+    -- We prove this as a primrec relation `R i (l, k) := l.getI i < some k`
+    -- and then apply `forall_mem_list` with `L = List.range ⟪i, e⟫`.
+    -- decide (o < some k) for o : Option ℕ is primrec via option_casesOn.
+    have h_optlt : Primrec (fun (a : WithBot ℕ × ℕ) => decide (a.1 < .some a.2)) := by
+      have h₂ : Primrec₂ (fun (a : WithBot ℕ × ℕ) (n : ℕ) => decide (n < a.2)) :=
+        Primrec₂.comp Primrec.nat_lt.decide Primrec.snd
+          (Primrec.snd.comp Primrec.fst)
+      refine (Primrec.option_casesOn Primrec.fst (Primrec.const true) h₂).of_eq
+        fun ⟨o, k⟩ => ?_
+      cases o
+      · rfl
+      · simp [WithBot.some_eq_coe]
+    -- Lift to a PrimrecRel R : ℕ → (List (Withbot ℕ) × ℕ) → Prop.
+    have hR_prim : PrimrecRel
+        (fun (i : ℕ) (lk : List (WithBot ℕ) × ℕ) => lk.1.getI i < some lk.2) := by
+      refine Primrec.primrecPred ?_
+      refine (h_optlt.comp (α := ℕ × (List (Option ℕ) × ℕ))
+        (Primrec.pair (Primrec.list_getI.comp (Primrec.fst.comp Primrec.snd) Primrec.fst)
+          (Primrec.snd.comp Primrec.snd))).of_eq fun p => rfl
+    -- ∀ n ∈ List.range n, R i lk
+    have h_all : PrimrecRel (fun (L : List ℕ) (lk : List (WithBot ℕ) × ℕ) =>
+        ∀ n ∈ L, lk.1.getI n < some lk.2) := hR_prim.forall_mem_list
+    have hrange : Primrec (fun p : I => List.range ⟪p.1.1, p.2.1⟫) := Primrec.list_range.comp hie
+    refine ((h_all.comp hrange (Primrec.pair hr hey)).decide).of_eq fun p => ?_
+    simp [WithBot.some_eq_coe]
+
+/--
+`findWitness?` is primitive recursive.
+-/
+lemma primrec₂_findWitness? : Primrec (fun a : ℕ × ℕ × FMStage => findWitness? a.1 a.2.1 a.2.2) := by
+  refine Primrec.list_find? ?_ primrec₂_isWitness
+  refine Primrec.list_product.comp ?_ ?_
+  all_goals exact .comp .list_range (.comp .fst .snd)
+
+/--
+`extend` is primitive recursive.
+-/
+lemma primrec₂_extend : Primrec (fun a : ℕ × ℕ × FMStage => extend a.1 a.2.1 a.2.2) := by
+  set A : Type := ℕ × ℕ × FMStage
   -- Projections on A
-  have hk : Primrec (Prod.fst : A → ℕ) := Primrec.fst
-  have hp : Primrec (fun a : A => a.2.1) := Primrec.fst.comp .snd
-  have hp1 : Primrec (fun a : A => a.2.1.1) := Primrec.fst.comp hp
-  have hp2 : Primrec (fun a : A => a.2.1.2) := Primrec.snd.comp hp
-  have hr : Primrec (fun a : A => a.2.2) := Primrec.snd.comp .snd
-  -- findWitness? as Primrec
-  have hfw : Primrec (fun a : A => findWitness? f a.1 a.2) := primrec₂_findWitness? hf
-  -- The none branch: just return (p, r)
-  have hnone : Primrec (fun a : A => a.2) := Primrec.snd
-  -- The some branch: (a, (e, y)) ↦ ((Nat.pair e y :: p.1, p.2), r.takeI (f e) ++ [some k])
-  -- Let B := ℕ × ℕ. Input type for g is A × B.
-  have hsome : Primrec₂ (fun (a : A) (ey : ℕ × ℕ) =>
-      ((⟪ey.1, ey.2⟫ :: a.2.1.1, a.2.1.2), a.2.2.takeI (f ey.1) ++ [some a.1])) := by
-    -- Projections on A × B
-    have he : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.1) := Primrec.fst.comp .snd
-    have hy : Primrec (fun ab : A × (ℕ × ℕ) => ab.2.2) := Primrec.snd.comp .snd
+  have hi : Primrec (fun a : A => a.1) := .fst
+  have hk : Primrec (fun a : A => a.2.1) := .comp .fst .snd
+  have hp : Primrec (fun a : A => a.2.2.1) := .comp .fst (.comp .snd .snd)
+  have hr : Primrec (fun a : A => a.2.2.2) := .comp .snd (.comp .snd .snd)
+  -- The none branch: just return `s = (p, r)`
+  have hnone : Primrec (fun a : A => a.2.2) := .comp .snd .snd
+  -- The some branch: `some (e, y) => ((i, ⟪e, y⟫) :: p, r.takeI ⟪i, e⟫ ++ [WithBot.some k])`
+  have hsome : Primrec₂ (fun (a : A) (x : ℕ × ℕ) =>
+      ((a.1, ⟪x.1, x.2⟫) :: a.2.2.1, a.2.2.2.takeI ⟪a.1, x.1⟫ ++ [.some a.2.1])) := by
+    have he : Primrec (fun b : A × (ℕ × ℕ) => b.2.1) := Primrec.fst.comp .snd
+    have hy : Primrec (fun b : A × (ℕ × ℕ) => b.2.2) := Primrec.snd.comp .snd
     refine Primrec.pair ?_ ?_
-    · refine Primrec.pair ?_ (hp2.comp .fst)
-      refine Primrec.list_cons.comp ?_ (hp1.comp .fst)
-      exact Primrec₂.natPair.comp he hy
+    · refine Primrec.list_cons.comp ?_ (hp.comp .fst)
+      exact Primrec.pair (hi.comp .fst) (Primrec₂.natPair.comp he hy)
     · refine Primrec.list_append.comp ?_ ?_
-      · exact Primrec.list_takeI.comp (hr.comp .fst) (hf.comp he)
+      · refine Primrec.list_takeI.comp (hr.comp .fst) ?_
+        exact Primrec₂.natPair.comp (hi.comp .fst) he
       · refine Primrec.list_cons.comp ?_ (.const [])
         exact Primrec.option_some.comp (hk.comp .fst)
   -- Combine with option_casesOn
-  refine (Primrec.option_casesOn hfw hnone hsome).of_eq fun ⟨k, p, r⟩ => ?_
+  refine (Primrec.option_casesOn primrec₂_findWitness? hnone hsome).of_eq fun ⟨i, k, s⟩ => ?_
   simp only [extend]
-  cases findWitness? f k (p, r) with rfl
+  cases findWitness? i k s with rfl
 
 /--
-Having defined the `extend` function, we can build the increasing sequence of finite sets easily.
-Note that `extend` is invoked on `(p.1, p.2)` using the indexing function `2 * ·`, and then on `(p.2, p.1)` using the indexing function `2 * · + 1`.
+Define the construction by invoking `extend` at each stage.
+
+Note: `extend k.unpair.1 k.unpair.2 (stage k)` would also be valid.
+This has the benefit of doing a little less pairing/unpairing. The consequence is that for each `i`, `extend i` is invoked with infinitely many `k`, not with all `k`. So we need to prove some kind of monotonicity fact at some point.
 -/
-def seq : ℕ → FMStage
-  | 0 => (([], []), [])
-  | k + 1 =>
-    Prod.map .swap id <|
-    extend (2 * · + 1) k <|
-    Prod.map .swap id <|
-    extend (2 * ·) k <|
-    seq k
-
-def seq1 (k : ℕ) := (seq k).1.1
-
-def seq2 (k : ℕ) := (seq k).1.2
-
-def p1 (x : ℕ) : Prop := ∃ k, x ∈ seq1 k
-
-def p2 (x : ℕ) : Prop := ∃ k, x ∈ seq2 k
+def stage : ℕ → FMStage
+  | 0 => ([], [])
+  | k + 1 => extend k.unpair.1 k (stage k)
 
 /--
-The restraint table. `res k n = some j` if the requirement corresponding to `n` was satisfied at an earlier stage `j < k`, and not injured since then.
+The sequence of approximations of the RE predicates.
 -/
-def res (k : ℕ) (n : ℕ) : Option ℕ := (seq k).2.getI n
+def approx (k : ℕ) : List (ℕ × ℕ) := (stage k).1
 
 /--
-`seq1` is monotone.
+The sequence of approximations to the `i`th oracle, which is the oracle that will not be able to compute `fmPred i`. At the `k`th stage, we try to ensure `p.i` is not computable relative to `approxOracle i k`. Unlike `approx`, the elements of this list are already paired.
 -/
-lemma seq1_mono (k : ℕ) : seq1 k ⊆ seq1 (k + 1) := by
-  simp [seq1, seq, extend_fst, extend_snd]
+def approxOracle (i k : ℕ) : List ℕ :=
+  ((approx k).filter fun x => x.1 ≠ i).map Nat.pair.uncurry
 
 /--
-`seq2` is monotone.
+An alternative definition of `approxOracle`.
 -/
-lemma seq2_mono (k : ℕ) : seq2 k ⊆ seq2 (k + 1) := by
-  simp only [seq2, seq, Prod.map]
-  exact List.Subset.trans (by simp [extend_snd]) extend_fst
+lemma approxOracle_eq (i k : ℕ) :
+    approxOracle i k = ((approx k).map Nat.pair.uncurry).filter fun x => x.unpair.1 ≠ i := by
+  simp only [approxOracle, List.filter_map]
+  congr
+  funext x
+  simp [Function.uncurry]
 
 /--
-`seq` is primitive recursive.
+For each `i`, `fmPred i : ℕ → Prop` is one of the predicates witnessing Friedberg-Muchnik.
 -/
-lemma primrec_seq : Primrec seq := by
-  -- Prod.map Prod.swap id is primrec: ((a, b), c) ↦ ((b, a), c)
-  have hswap : Primrec (Prod.map Prod.swap id : FMStage → FMStage) :=
-    .pair (.pair (.comp .snd .fst) (.comp .fst .fst)) .snd
-  have hf1 : Primrec (2 * ·) := Primrec.nat_mul.comp (.const 2) .id
-  have hf2 : Primrec (2 * · + 1) := Primrec.succ.comp hf1
-  -- step: (k, prev) ↦ Prod.map .swap id (extend (2*·+1) k (Prod.map .swap id (extend (2*·) k prev)))
-  have hstep := hswap.comp
-    ((primrec₂_extend hf2).comp Primrec.fst
-      (hswap.comp ((primrec₂_extend hf1).comp Primrec.fst Primrec.snd)))
-  refine (Primrec.nat_rec₁ (([], []), []) hstep.to₂).of_eq fun n => ?_
+def fmPred (i x : ℕ) : Prop := ∃ k, (i, x) ∈ approx k
+
+/--
+For each `i`, `fmOracle i : ℕ → Prop` is the oracle obtained by zeroing out the `i`th predicate of `fmPred`.
+-/
+def fmOracle (i x : ℕ) : Prop := ∃ k, x ∈ approxOracle i k
+
+/--
+The restraint table. `res n m = some j` if the requirement corresponding to `n` was satisfied at an earlier stage `j < n`, and not injured since then. Otherwise, `res n m = ⊥`.
+-/
+def res (n m : ℕ) : WithBot ℕ := (stage n).2.getI m
+
+@[simp]
+lemma approx_zero : approx 0 = [] := rfl
+
+@[simp]
+lemma res_zero (n : ℕ) : res 0 n = ⊥ := rfl
+
+/--
+The sequence of approxiations is monotone.
+-/
+lemma approx_mono (n : ℕ) : approx n ⊆ approx (n+1) :=
+  subset_extend
+
+/--
+Each sequence of oracle approxiations is monotone.
+-/
+lemma approxOracle_mono (i n : ℕ) : approxOracle i n ⊆ approxOracle i (n+1) :=
+  List.map_subset _ (List.filter_subset _ (approx_mono n))
+
+/--
+`stage` is primitive recursive.
+-/
+lemma primrec_stage : Primrec stage := by
+  -- step: (k, ih) => extend k.unpair.1 k ih
+  have hstep : Primrec₂ fun k ih => extend k.unpair.1 k ih :=
+    primrec₂_extend.comp <| .pair (.comp .fst (.comp .unpair .fst)) .id
+  refine (Primrec.nat_rec₁ ([], []) hstep).of_eq fun n => ?_
   induction n with
   | zero => rfl
-  | succ n IH => rw [seq, ← IH]
+  | succ n IH => simp [stage, IH]
 
 /--
-`seq1` is primitive recursive.
+`approx` is primitive recursive.
 -/
-lemma primrec_seq1 : Primrec seq1 :=
-  Primrec.fst.comp (Primrec.fst.comp primrec_seq)
+lemma primrec_approx : Primrec approx :=
+  Primrec.fst.comp primrec_stage
 
 /--
-`seq2` is primitive recursive.
+`fmPred` is RE.
 -/
-lemma primrec_seq2 : Primrec seq2 :=
-  Primrec.snd.comp (Primrec.fst.comp primrec_seq)
+lemma re_fmPred : REPred (fun x : ℕ × ℕ => fmPred x.1 x.2) :=
+  re_of_primrec_seq primrec_approx
 
 /--
-If a sequence `s : ℕ → List ℕ` is primitive recursive, then the predicate `fun n => ∃ k, n ∈ s k` is RE.
+Each `fmPred i` is RE.
 -/
-lemma re_of_primrec_seq {s : ℕ → List ℕ} (hs : Primrec s) : REPred (fun x => ∃ k, x ∈ s k) := by
-  -- `x ∈ l` is a primitive recursive relation in `(l, x)`.
-  have hmem_list : PrimrecRel (fun (l : List ℕ) (x : ℕ) => x ∈ l) :=
-    Primrec.eq.exists_mem_list.of_eq fun l b => ⟨fun ⟨_, ha, rfl⟩ => ha, fun h => ⟨b, h, rfl⟩⟩
-  have hmem_seq : PrimrecRel (fun x k => x ∈ s k) :=
-    hmem_list.comp (hs.comp Primrec.snd) Primrec.fst
-  have hpartrec : Partrec₂ fun x k => Part.some (decide (x ∈ s k)) :=
-    hmem_seq.decide.to₂.to_comp.partrec₂
-  -- Nat.rfind (fun k => Part.some (decide (x ∈ s k))) has domain p1 x
-  refine (Partrec.rfind hpartrec).dom_re.of_eq fun x => ?_
-  simp only [Nat.rfind_dom, Part.mem_some_iff]
+lemma re_fmPred_fiber (i : ℕ) : REPred (fmPred i) := by
+  refine re_fmPred.comp_computable (?_ : Computable (i, ·))
+  exact (Primrec.pair (.const i) .id).to_comp
+
+lemma isWitness_iff {k x}
+  : isWitness k.unpair.1 k (stage k) x
+  ↔ res k ⟪k.unpair.1, x.1⟫ = ⊥
+    ∧ (k.unpair.1, ⟪x.1, x.2⟫) ∉ approx k
+    ∧ 0 ∈ (ofNat Code x.1).evaln k (fun a => if a ∈ approxOracle k.unpair.1 k then 1 else 0) ⟪x.1, x.2⟫
+    ∧ ∀ n < ⟪k.unpair.1, x.1⟫, res k n < .some ⟪x.1, x.2⟫ := by
+  simp [isWitness, res, approx]
+  rintro - - -
+  rw [iff_iff_eq]
+  congr
+  funext a
+  simp [approxOracle, approx]
+  congr
+  simp [← ne_eq]
   constructor
-  · rintro ⟨k, hk, -⟩; exact ⟨k, decide_eq_true_iff.mp hk.symm⟩
-  · rintro ⟨k, hk⟩; exact ⟨k, by simp [hk], fun _ => trivial⟩
+  · intro ⟨ha, ha'⟩
+    use a.unpair.1, a.unpair.2
+    simp [ha']
+    exact ha.symm
+  · rintro ⟨a1, a2, ha, rfl⟩
+    simp only [Nat.unpair_pair]
+    exact ⟨ha.2.symm, ha.1⟩
 
 /--
-The predicate `p1` is RE.
+The two elements returned by `findWitness?` are always `< k`.
 -/
-lemma re_p1 : REPred p1 := re_of_primrec_seq primrec_seq1
+lemma findWitness?_lt {i k : ℕ} {s : FMStage} {e y : ℕ} (hfw : findWitness? i k s = some (e, y)) : e < k ∧ y < k := by
+  apply List.mem_of_find?_eq_some at hfw
+  simp only [List.mem_product, List.mem_range] at hfw
+  exact hfw
 
 /--
-The predicate `p2` is RE.
+Helper: values in `(extend i k s).2` at position `a < ⟪i, e⟫` are preserved from `s.2` when action occurs.
 -/
-lemma re_p2 : REPred p2 := re_of_primrec_seq primrec_seq2
-
-/--
-Helper: values in `(extend f k u).2` at position `i < f e` are preserved from `u.2` when action occurs.
--/
-lemma extend_snd_getI_lt {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y i : ℕ}
-    (h : findWitness? f k u = some (e, y)) (hi : i < f e) :
-    (extend f k u).2.getI i = u.2.getI i := by
+lemma extend_snd_getI_lt {i k : ℕ} {s : FMStage} {e y a : ℕ}
+    (h : findWitness? i k s = some (e, y)) (ha : a < ⟪i, e⟫) :
+    (extend i k s).2.getI a = s.2.getI a := by
   simp only [extend, h]
-  rw [List.getI_append _ _ _ (by rw [List.takeI_length]; exact hi)]
-  exact List.getI_takeI u.2 (f e) i hi
+  rw [List.getI_append _ _ _ (by rw [List.takeI_length]; exact ha)]
+  exact List.getI_takeI s.2 ⟪i, e⟫ a ha
 
 /--
-Helper: value at position `f e` of `(extend f k u).2` is `some k` when action occurs.
+Helper: value at position `⟪i, e⟫` of `(extend i k s).2` is `some k` when action occurs.
 -/
-lemma extend_snd_getI_eq {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y : ℕ}
-    (h : findWitness? f k u = some (e, y)) :
-    (extend f k u).2.getI (f e) = some k := by
+lemma extend_snd_getI_eq {i k : ℕ} {s : FMStage} {e y : ℕ}
+    (h : findWitness? i k s = some (e, y)) :
+    (extend i k s).2.getI ⟪i, e⟫ = .some k := by
   simp only [extend, h]
   rw [List.getI_append_right _ _ _ (by rw [List.takeI_length])]
   rw [List.takeI_length]
   simp
 
 /--
-Helper: value at position `i > f e` of `(extend f k u).2` is `none` when action occurs.
+Helper: value at position `a > ⟪i, e⟫` of `(extend i k s).2` is `⊥` when action occurs.
 -/
-lemma extend_snd_getI_gt {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y i : ℕ}
-    (h : findWitness? f k u = some (e, y)) (hi : f e < i) :
-    (extend f k u).2.getI i = none := by
+lemma extend_snd_getI_gt {i k : ℕ} {s : FMStage} {e y a : ℕ}
+    (h : findWitness? i k s = some (e, y)) (ha : ⟪i, e⟫ < a) :
+    (extend i k s).2.getI a = ⊥ := by
   simp only [extend, h]
-  have hlen : (u.2.takeI (f e) ++ [some k]).length ≤ i := by
-    rw [List.length_append, List.takeI_length, List.length_singleton]
-    omega
-  exact List.getI_eq_default _ hlen
+  exact List.getI_eq_default _ (by simpa)
 
 /--
-Helper: `findWitness?` precondition gives `u.2.getI (f e) = none` when it returns `some (e, y)`.
+Helper: `findWitness?` precondition gives `s.2.getI ⟪i, e⟫ = ⊥` when it returns `some (e, y)`.
 -/
-lemma findWitness?_some_getI_eq_none {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {e y : ℕ}
-    (h : findWitness? f k u = some (e, y)) :
-    u.2.getI (f e) = none := by
-  unfold findWitness? at h
+lemma findWitness?_some_getI_eq_none {i k : ℕ} {s : FMStage} {e y : ℕ}
+    (h : findWitness? i k s = some (e, y)) :
+    s.2.getI ⟪i, e⟫ = ⊥ := by
+  unfold findWitness? isWitness at h
   have := List.find?_some h
   simp only [decide_eq_true_eq] at this
-  obtain ⟨hnone, _, _, _⟩ := this
-  exact Option.isNone_iff_eq_none.mp hnone
+  exact this.1
 
 /--
 Helper: if all `some m` values in `u.2` satisfy `m ≤ k`, then the same holds for `(extend f k u).2`.
 -/
-lemma extend_snd_bound_le {f : ℕ → ℕ} {k : ℕ} {u : FMStage} {i m : ℕ}
-    (h : u.2.getI i = some m → m ≤ k)
-    (hget : (extend f k u).2.getI i = some m) : m ≤ k := by
-  cases hfw : findWitness? f k u with
+lemma extend_snd_bound_le {i k : ℕ} {s : FMStage} {a m : ℕ}
+    (h : s.2.getI a = .some m → m ≤ k)
+    (hget : (extend i k s).2.getI a = .some m) : m ≤ k := by
+  cases hfw : findWitness? i k s with
   | none =>
-    have heq : (extend f k u).2 = u.2 := by simp [extend, hfw]
+    have heq : (extend i k s).2 = s.2 := by simp [extend, hfw]
     rw [heq] at hget
     exact h hget
   | some p =>
     obtain ⟨e, y⟩ := p
-    rcases lt_trichotomy i (f e) with hi | hi | hi
+    rcases lt_trichotomy a ⟪i, e⟫ with hi | rfl | hi
     · rw [extend_snd_getI_lt hfw hi] at hget
       exact h hget
-    · subst hi
-      rw [extend_snd_getI_eq hfw] at hget
+    · rw [extend_snd_getI_eq hfw] at hget
       have : m = k := by injection hget with h; exact h.symm
       subst this; rfl
     · rw [extend_snd_getI_gt hfw hi] at hget
       contradiction
 
 /--
-Helper: any `some m` value in `res k` satisfies `m < k`.
+Helper: any `some k` value in `res k` satisfies `m < k`.
 -/
-lemma res_lt_stage {k i m : ℕ} (h : res k i = some m) : m < k := by
+lemma res_lt_stage {k n m : ℕ} (h : res k n = .some m) : m < k := by
   induction k with
   | zero => contradiction
-  | succ k IH =>
+  | succ n IH =>
     apply Nat.lt_succ_of_le
-    simp only [res, seq, Prod.map_snd, id_eq] at h
-    refine extend_snd_bound_le (fun h1 => ?_) h
-    refine extend_snd_bound_le (fun h2 => ?_) h1
-    exact (IH h2).le
+    simp only [res, stage] at h
+    refine extend_snd_bound_le (fun h' => ?_) h
+    exact (IH h').le
 
 /--
-If for all `i < n`, `res k i` is constant for `k ≥ k₀`, and if for some `k₁ ≥ k₀` we have `res k₁ n = some j`, then this value persists forever.
+If `res (k+1) i = some m`, then either `m < k` and `res k i = some m`, or `m = k` and `res k i = none`.
 -/
-lemma res_eq_some_of_stable_prefix {n k₀ k₁ j} (hk₀ : ∀ i < n, ∃ o, ∀ k ≥ k₀, res k i = o) (hle : k₀ ≤ k₁) (hk₁ : res k₁ n = some j) : ∀ k ≥ k₁, res k n = some j := by
+lemma res_lt_or_eq {k i e m : ℕ} (h : res (k+1) ⟪i, e⟫ = .some m)
+    : (m < k ∧ res k ⟪i, e⟫ = .some m)
+    ∨ (m = k ∧ res k ⟪i, e⟫ = ⊥ ∧ m.unpair.1 = i ∧ ∃ y, findWitness? i k (stage k) = some (e, y))
+    := by
+  have hm_le : m ≤ k := Nat.le_of_lt_succ (res_lt_stage h)
+  rcases hfw : findWitness? k.unpair.1 k (stage k) with - | ⟨e', y⟩
+  · left
+    simp only [res, stage, extend, hfw] at h
+    exact ⟨res_lt_stage h, h⟩
+  · simp only [res, stage, extend, hfw] at h
+    rcases lt_trichotomy ⟪i, e⟫ ⟪k.unpair.1, e'⟫ with hlt | heq | hgt
+    · -- In this case `⟪i, e⟫` is not injured, so its value persists from the previous stage.
+      left
+      rw [List.getI_append_takeI_left _ _ hlt] at h
+      exact ⟨res_lt_stage h, h⟩
+    · -- This is the only case where we end up on right side of the disjunction.
+      right
+      simp only [Nat.pair_eq_pair] at heq
+      obtain ⟨rfl, rfl⟩ := heq
+      simp_all
+      exact findWitness?_some_getI_eq_none hfw
+    · -- This contradicts `h`, just by length considerations.
+      rw [List.getI_eq_default _ ?_] at h
+      · contradiction
+      simp [Nat.succ_le_of_lt hgt]
+
+/--
+If `res k ⟪i,e⟫ = some m`, then this value was set at stage `m+1` and has persisted since then. Also, this gives some information about the result of `findWitness?` at that stage.
+-/
+lemma res_set_at_stage {k i e m : ℕ} (h : res k ⟪i, e⟫ = .some m)
+    : (∀ n ∈ Set.Ioc m k, res n ⟪i, e⟫ = .some m) ∧ res m ⟪i, e⟫ = ⊥ ∧ m.unpair.1 = i
+    ∧ ∃ y, findWitness? i m (stage m) = some (e, y) := by
+  have hm : m < k := res_lt_stage h
+  induction k, hm using Nat.le_induction with
+  | base =>
+    have := res_lt_or_eq h
+    grind
+  | succ k hk IH =>
+    have : Set.Ioc m (k+1) = Set.Ioc m k ∪ {k+1} := by
+      ext x; simp; omega
+    rw [this]
+    simp only [Set.union_singleton, Set.mem_insert_iff, forall_eq_or_imp, h, true_and]
+    apply IH
+    rcases res_lt_or_eq h with ⟨-, hres⟩ | ⟨rfl, -, -, -⟩
+    · exact hres
+    · omega
+
+/--
+This means that requirement `n` is stable starting at stage `k₀`, i.e., it is either satisfied and never again injured, or it is never set.
+-/
+abbrev IsStableAfter (n : ℕ) (k₀ : ℕ) : Prop := ∃ o, ∀ k ≥ k₀, res k n = o
+
+/--
+If strategy `n` is stable after `k₀`, then for all `k` we have `res k n < some k₀`.
+-/
+lemma res_lt_stage_of_stable {n k₀ : ℕ} (hstable : IsStableAfter n k₀) (k : ℕ) : res k n < .some k₀ := by
+  obtain ⟨o, ho⟩ := hstable
+  by_cases! hk : k ≥ k₀
+  · rw [ho k hk, ← ho k₀ le_rfl]
+    rcases hres : res k₀ n with - | j
+    · simp [WithBot.none_eq_bot]
+    · simp [WithBot.some_eq_coe]
+      exact res_lt_stage hres
+  · rcases hres : res k n with - | j
+    · simp [WithBot.none_eq_bot]
+    · simp [WithBot.some_eq_coe]
+      exact lt_trans (res_lt_stage hres) hk
+
+/--
+If for all `m < n`, `res k m` is constant for `k ≥ k₀`, and if for some `k₁ ≥ k₀` we have `res k₁ n = some j`, then this value persists forever.
+-/
+lemma res_eq_some_of_stable_prefix {n k₀ k₁ j} (hk₀ : ∀ m < n, IsStableAfter m k₀) (hle : k₀ ≤ k₁) (hk₁ : res k₁ n = .some j) : ∀ k ≥ k₁, res k n = .some j := by
   intro k hk
   induction k, hk using Nat.le_induction with
   | base => exact hk₁
   | succ k hk IH =>
-    -- The goal is to show `res (k+1) n = some j`. This is true because no
-    -- action in either `extend` call at stage `k` can occur at position
-    -- `≤ n`, and hence both calls preserve position `n`.
-    have k_ge : k ≥ k₀ := le_trans hle hk
-    have k1_ge : k+1 ≥ k₀ := Nat.le_succ_of_le k_ge
-    -- `k` doesn't appear as a value in `res k`.
-    have no_k_in_r₀ (i : ℕ) : res k i ≠ some k :=
-      fun hi => lt_irrefl k (res_lt_stage hi)
-    -- Unfold seq (k+1).
-    have hseq : seq (k+1) = _ := seq.eq_2 k
-    simp only [res, seq, Prod.map_snd, id_eq]
-    -- Introduce the two extend stages.
-    set u₀ := seq k with hu₀
-    set u₁ := extend (2 * ·) k u₀ with hu₁
-    set u₂ := Prod.map Prod.swap id u₁ with hu₂
-    have hr₀n : u₀.2.getI n = some j := IH
-    -- Show u₁.2.getI n = some j: first extend preserves position n.
-    have hr₁n : u₁.2.getI n = some j := by
-      rw [hu₁]
-      rcases hfw : findWitness? (2 * ·) k u₀ with - | ⟨e, y⟩
-      · simp [extend, hfw, hr₀n]
-      · -- Position 2e: action occurs at 2e. Reduce to showing 2e > n.
-        rwa [extend_snd_getI_lt hfw ?_]
-        by_contra! hle
-        rcases lt_or_eq_of_le hle with h2e_lt | rfl
-        · -- 2e < n: use stability + no_k_in_r₀.
-          obtain ⟨o, ho⟩ := hk₀ (2 * e) h2e_lt
-          have hres_k : res k (2 * e) = o := ho k k_ge
-          have hres_k1 : res (k+1) (2 * e) = o := ho (k+1) k1_ge
-          -- After extend at stage k, value at 2e should appear as some k somewhere.
-          -- Position 2e in u₁ is some k. But this intermediate state is not `seq`.
-          -- We trace through second extend:
-          -- Either second extend doesn't act, or acts at some 2e'+1.
-          -- In either sub-case, the final value at some position ≤ n is some k,
-          -- contradicting no_k_in_r₀ via stability.
-          have h1 : u₁.2.getI (2 * e) = some k := extend_snd_getI_eq hfw
-          rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e', y'⟩
-          · -- r₃ = r₂ = r₁. So r₃.getI (2e) = some k. But res (k+1) (2e) = o = r₃.getI (2e).
-            have heq : res (k+1) (2 * e) = some k := by
-              simp only [res, hseq, extend, hfw2]
-              exact h1
-            rw [heq] at hres_k1
-            rw [← hres_k1] at hres_k
-            exact no_k_in_r₀ (2 * e) hres_k
-          · -- Second extend acts at 2e'+1. Position 2e+1's role vs 2e depends on ordering.
-            by_cases! hord : 2 * e < 2 * e' + 1
-            · -- 2e' + 1 > 2e, so position 2e is preserved in r₃.
-              have heq : res (k+1) (2 * e) = some k := by
-                simp only [res, hseq, Prod.map_snd, id_eq, extend_snd_getI_lt hfw2 hord]
-                exact h1
-              rw [heq] at hres_k1
-              rw [← hres_k1] at hres_k
-              exact no_k_in_r₀ (2 * e) hres_k
-            · -- 2e'+1 ≤ 2e, but different parity so 2e'+1 < 2e.
-              -- Second extend acts at 2e'+1 < 2e < n. Apply stability at 2e'+1.
-              obtain ⟨o', ho'⟩ := hk₀ (2 * e' + 1) (hord.trans_lt h2e_lt)
-              have hres'_k : res k (2 * e' + 1) = o' := ho' k k_ge
-              have hres'_k1 : res (k+1) (2 * e' + 1) = o' := ho' (k+1) k1_ge
-              -- res (k+1) (2e'+1) = some k (it's where second extend just acted)
-              have heq : res (k+1) (2 * e' + 1) = some k :=
-                extend_snd_getI_eq hfw2
-              rw [heq] at hres'_k1
-              rw [← hres'_k1] at hres'_k
-              exact no_k_in_r₀ (2 * e' + 1) hres'_k
-        · -- 2e = n
-          -- findWitness? required u₀.2.getI (2e) = u₀.2.getI n = none.
-          rw [findWitness?_some_getI_eq_none hfw] at hr₀n
-          contradiction
-    -- Now show second extend preserves position n.
-    have hr₂n : u₂.2.getI n = some j := hr₁n
-    rcases hfw2 : findWitness? (2 * · + 1) k u₂ with - | ⟨e, y⟩
-    · simp [extend, hfw2, hr₂n]
-    · rwa [extend_snd_getI_lt hfw2 ?_]
-      by_contra! hle
-      rcases lt_or_eq_of_le hle with h_lt | rfl
-      · -- 2e+1 < n.
-        obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) h_lt
-        have hres_k : res k (2 * e + 1) = o := ho k k_ge
-        have hres_k1 : res (k+1) (2 * e + 1) = o := ho (k+1) k1_ge
-        have heq : res (k+1) (2 * e + 1) = some k :=
-          extend_snd_getI_eq hfw2
-        rw [heq] at hres_k1
-        rw [← hres_k1] at hres_k
-        exact no_k_in_r₀ (2 * e + 1) hres_k
-      · -- 2e+1 = n.
-        rw [findWitness?_some_getI_eq_none hfw2] at hr₂n
+    -- The goal is to show `res (k+1) n = some j`. This is true because strategies `≤ n` cannot act at stage `k`.
+    unfold res stage
+    unfold res at IH
+    set i := k.unpair.1
+    rcases hfw : findWitness? i k (stage k) with - | ⟨e, y⟩
+    · -- No strategy acts. Then we conclude immediately.
+      simp [extend, hfw, IH]
+    · -- Strategy `⟪i, e⟫` acts. It suffices to show `n < ⟪i, e⟫`.
+      rwa [extend_snd_getI_lt hfw ?_]
+      by_contra! hn
+      rcases lt_or_eq_of_le hn with hn | rfl
+      · -- `⟪i, e⟫ < n`: use stability + `res_lt_stage`.
+        obtain ⟨o, ho⟩ := hk₀ ⟪i, e⟫ hn
+        have hres_k := ho k (by omega)
+        have hres_k1 := ho (k+1) (by omega)
+        have heq : res (k+1) ⟪i, e⟫ = some k := extend_snd_getI_eq hfw
+        rw [← hres_k1, heq] at hres_k
+        exact lt_irrefl k (res_lt_stage hres_k)
+      · -- `⟪i, e⟫ = n`: use induction hypothesis.
+        rw [findWitness?_some_getI_eq_none hfw] at IH
         contradiction
 
 /--
-Each strategy is injured finitely many times. This is expressed by saying that for each index `i`, the function `fun k => res k i` is eventually constant.
+Each strategy is injured finitely many times. This is expressed by saying that for each index `m`, the function `fun k => res k m` is eventually constant.
 -/
-lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res k i = o := by
+lemma finite_injury (n : ℕ) : ∃ k₀, ∀ m < n, IsStableAfter m k₀ := by
   induction n with
   | zero => simp
   | succ n IH =>
@@ -550,121 +499,331 @@ lemma finite_injury (n : ℕ) : ∃ k₀, ∀ i < n, ∃ o, ∀ k ≥ k₀, res 
         use o
         grind
     -- The current strategy cannot be injured after step `k₀`, so the value changes at most one more time.
-    -- If for every `k ≥ k₀` the value is `none`, then we conclude immediately.
-    by_cases! h : ∀ k ≥ k₀, res k n = none
-    · exact ⟨k₀, le_refl k₀, none, h⟩
+    by_cases! h : ∀ k ≥ k₀, res k n = ⊥
+    · -- If for every `k ≥ k₀` the value is `none`, then we conclude immediately.
+      exact ⟨k₀, le_refl k₀, ⊥, h⟩
     · -- Otherwise, we find a `k₁ ≥ k₀` where the value is `some j`, and this value persists forever by `res_eq_some_of_stable_prefix`.
-      simp only [Option.ne_none_iff_exists'] at h
+      simp only [WithBot.ne_bot_iff_exists] at h
       obtain ⟨k₁, hle, j, hk₁⟩ := h
-      exact ⟨k₁, hle, some j, res_eq_some_of_stable_prefix hk₀ hle hk₁⟩
+      exact ⟨k₁, hle, .some j, res_eq_some_of_stable_prefix hk₀ hle hk₁.symm⟩
 
+open Filter
 
-open Classical in
 /--
-If `res k (2 * e)` is eventually `none`, then there is some `x` such that `p1 x` does not hold, yet `e.eval p2 x ≠ 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+This is a version/consequence of the use principle. If `s k` is an increasing sequence of lists, then a code `c` halts on input `n` given oracle `⋃ k, s k`, if and only if there is some `k₀` such that for all `i,k ≥ k₀`, `c` halts on input `n` in `< i` steps given oracle `s k`.
+
+Remark: The right-to-left direction would be false if we replaced the right side with `∃ k₀, ∀ k ≥ k₀, ...`. A *uniform* bound on time is necessary.
 -/
-lemma res_none_even {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = none)
-    : ∃ x, ¬ p1 x ∧ 0 ∉ (ofNat Code e).eval (ofPred p2) x
-    := by
-  -- `v` is the last stage where a strategy `i < 2 * e` acts.
-  let v := Nat.find (finite_injury (2 * e))
-  have hv := Nat.find_spec (finite_injury (2 * e))
-  -- The witness `x` is `⟪e, y⟫`, where `y` is the smallest number `> v` such that `⟪e, y⟫ ∉ seq1 v`.
-  let g (y : ℕ) := v < y ∧ ⟪e, y⟫ ∉ seq1 v
-  have hg : ∃ y, g y := by
-    -- (This proof should be easy, since `g` defines a coinfinite set.)
-    sorry
-  let y := Nat.find hg
-  have hy : v < y ∧ ⟪e, y⟫ ∉ seq1 v := Nat.find_spec hg
-  use ⟪e, y⟫
+lemma eval_iff_eventually_evaln_of_tendsTo {c : Code} {f : ℕ → ℕ → ℕ} {g : ℕ → ℕ} (hlim : ∀ m, ∀ᶠ k in atTop, f k m = g m) {n x}
+    : x ∈ c.eval g n
+    ↔ ∃ k₀, ∀ t ≥ k₀, ∀ k ≥ k₀, x ∈ c.evaln t (f k) n := by
+  have hlim' (t₀ : ℕ) : ∃ k₀, ∀ k ≥ k₀, ∀ m < t₀, f k m = g m := by
+    simp [← eventually_atTop, Nat.forall_lt_iff_fin, eventually_all]
+    exact fun ⟨i, _⟩ => hlim i
+  rw [Code.evaln_complete]
   constructor
-  · -- Suppose `⟪e, y⟫` is enumerated into `p1`. Let `k` be the stage where the enumeration occurs.
-    intro henum
-    set k := Nat.find henum with k_def
-    have hk : ⟪e, y⟫ ∈ seq1 k := Nat.find_spec henum
-    -- We know that `k` is a successor, so we destructure it.
-    rcases k with - | k
-    · contradiction
-    -- The fact that `⟪e, y⟫` was enumerated at stage `k+1` implies that it is the result of `findWitness?` on stage `k`.
-    have hfw : findWitness? (2 * ·) k (seq k) = (e, y) := by
-      sorry
-    -- Since `v < y`, this enumeration must have happened at a stage `> v` (might have an off by one error here).
-    have : v < k := by
-      refine hy.1.trans ?_
-      sorry
-    -- Since this strategy can never be injured after stage `v`, the requirement is satisfied forever.
-    have : ∀ j > k, res j (2 * e) = some k := by
-      intro j hj
-      -- This should be the same proof as the inductive step of `finite_injury`; the inductive hypothesis here is just `hv`. Hence that step should be extracted into a separate lemma.
-      sorry
-    -- This contradicts our provided hypothesis `h`.
-    sorry
-  · -- Suppose `e.eval p2 ⟪e, y⟫ = 0`.
-    intro heval
-    sorry
+  · intro h
+    obtain ⟨t₀, ht₀⟩ := h
+    obtain ⟨k₀, hk₀⟩ := hlim' t₀
+    use max t₀ k₀
+    intro t ht k hk
+    simp at ht hk
+    apply Code.evaln_mono ht.1
+    rwa [Code.evaln_eq_of_oracle_eq (hk₀ k hk.2)]
+  · intro ⟨k₀, h⟩
+    obtain ⟨k₁, hk₁⟩ := hlim' k₀
+    use k₀
+    rw [← Code.evaln_eq_of_oracle_eq (hk₁ _ (le_max_right _ _))]
+    exact h _ le_rfl _ (le_max_left _ _)
 
 open Classical in
 /--
-See `res_none_even`.
-TODO: can we do without so much duplication for the even/odd cases?
+This is a version of `eval_iff_eventually_evaln_of_tendsTo` where the functions in the sequence are indicator functions of a monotone sequence of lists.
 -/
-lemma res_none_odd {e k₀ : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = none)
-    : ∃ x, ¬ p2 x ∧ (ofNat Code e).eval (ofPred p1) x ≠ 0
+lemma eval_iff_eventually_evaln_of_mono {c : Code} {s : ℕ → List ℕ} (hs : ∀ k, s k ⊆ s (k+1)) {n x}
+    : x ∈ c.eval (ofPred fun y => ∃ k, y ∈ s k) n
+    ↔ ∃ k₀, ∀ t ≥ k₀, ∀ k ≥ k₀, x ∈ c.evaln t (fun a => if a ∈ s k then 1 else 0) n := by
+  apply eval_iff_eventually_evaln_of_tendsTo
+  intro m
+  rw [Filter.eventually_atTop, ofPred]
+  by_cases h : ∃ k, m ∈ s k <;> simp [h]
+  · obtain ⟨k₀, hk₀⟩ := h
+    use k₀
+    intro k hk
+    induction k, hk using Nat.le_induction with
+    | base => exact hk₀
+    | succ k hk IH => exact hs k IH
+  · push Not at h
+    exact ⟨0, fun k _ => h k⟩
+
+open Classical in
+lemma eval_oracle_iff_eventually_evaln_approxOracle {c : Code} {i n x : ℕ}
+    : x ∈ c.eval (ofPred (fmOracle i)) n
+    ↔ ∃ k₀, ∀ t ≥ k₀, ∀ k ≥ k₀, x ∈ c.evaln t (fun a => if a ∈ approxOracle i k then 1 else 0) n :=
+  eval_iff_eventually_evaln_of_mono (approxOracle_mono i)
+
+lemma approx_eq_of_res_eventually_eq_some {n m} (h : ∀ k > m, res k n = .some m) : ∀ a ≤ m, ∀ k > m, a.unpair ∈ approx k ↔ a.unpair ∈ approx (m+1) := by
+  intro a ha k hk
+  induction k, hk using Nat.le_induction with
+  | base => rfl
+  | succ k hk IH =>
+    rw [← IH]
+    rcases hfw : findWitness? k.unpair.1 k (stage k) with - | ⟨e, y⟩
+    · simp [approx, stage, extend, hfw]
+    · simp [approx, stage, extend, hfw]
+      have hiw := List.find?_some hfw
+      simp [isWitness_iff, -Option.mem_def] at hiw
+      obtain ⟨-, -, -, hbound⟩ := hiw
+      rcases lt_trichotomy ⟪k.unpair.1, e⟫ n with hn_lt | hn_eq | hn_gt
+      · have : res (k+1) n = ⊥ := by
+          simp [res, stage, extend, hfw]
+          rw [lt_iff_exists_add] at hn_lt
+          obtain ⟨c, hc, rfl⟩ := hn_lt
+          simp [List.getI, hc.ne', default]
+        rw [h (k+1) (Nat.le_succ_of_le hk)] at this
+        contradiction
+      · have : res (k+1) n = .some k := by
+          simp [res, stage, extend, hfw, hn_eq]
+        rw [h (k+1) (by  omega), WithBot.coe_inj] at this
+        omega
+      · specialize hbound n hn_gt
+        specialize h k hk
+        rw [h] at hbound
+        rw [WithBot.coe_lt_coe] at hbound
+        intro h''
+        apply congr_arg Nat.pair.uncurry at h''
+        simp [Function.uncurry] at h''
+        have : ⟪e, y⟫ ≤ a := by
+          rw [h'']
+          exact Nat.right_le_pair _ _
+        omega
+
+open Classical in
+/--
+If `res k ⟪i, e⟫` is eventually `⊥`, then there is some `x` such that `fmPred i x` does not hold, yet `e.eval (fmOracle i) x ≠ 0`. Thus `e` does not compute `fmPred i` using oracle `fmOracle i`.
+-/
+lemma res_bot {i e k₀ : ℕ} (hk₀ : ∀ k ≥ k₀, res k ⟪i, e⟫ = ⊥)
+    : ∃ x, ¬fmPred i x ∧ 0 ∉ (ofNat Code e).eval (ofPred (fmOracle i)) x
     := by
-  sorry
+  -- `v` is some stage after which no strategy `n < ⟪i, e⟫` acts.
+  have ⟨v, hv⟩ := finite_injury ⟪i, e⟫
+  have hres_lt {n : ℕ} (hn : n < ⟪i, e⟫) : ∀ k, res k n < .some v :=
+    res_lt_stage_of_stable (hv n hn)
+  -- `res k ⟪i, e⟫` cannot be `some j` at any stage `≥ v`.
+  have hne_some {k j : ℕ} (hk : k ≥ v) : res k ⟪i, e⟫ ≠ some j := by
+    intro hres
+    have hk' := res_eq_some_of_stable_prefix hv hk hres
+    specialize hk₀ (max k₀ k) (Nat.le_max_left _ _)
+    specialize hk' (max k₀ k) (Nat.le_max_right _ _)
+    rw [hk₀] at hk'
+    contradiction
+  -- The witness `x` is `⟪e, y⟫`, where `y` is any number `> v` such that `⟪e, y⟫ ∉ seq1 v`.
+  have ⟨y, hy⟩ : ∃ y, v < y ∧ (i, ⟪e, y⟫) ∉ approx v := by
+    -- (This proof should be easy, since the predicate defines a coinfinite set. But I am not sure how to tell this to lean.)
+    set x := max v (((approx v).map (·.2.unpair.2)).max?.getD 0) + 1 with x_def
+    refine ⟨x, lt_of_le_of_lt (le_max_left _ _) (Nat.lt_add_one _), fun h => ?_⟩
+    have hx : x ∈ (approx v).map (·.2.unpair.2) := by
+      convert List.mem_map_of_mem h; simp
+    simp [List.max?_eq_some_max (List.ne_nil_of_mem hx)] at x_def
+    have : x + 1 ≤ _ := Nat.succ_le_succ (List.le_max_of_mem hx)
+    omega
+  -- `⟪e, y⟫` is not enumerated into `p1`.
+  have hnp : ¬fmPred i ⟪e, y⟫ := by
+    -- Suppose otherwise. Let `k₁` be the stage where the enumeration occurs.
+    intro henum
+    set k₁ := Nat.find henum with k₁_def
+    have hk₁ : (i, ⟪e, y⟫) ∈ approx k₁ := Nat.find_spec henum
+    -- We know that `k₁` is a successor (since `approx 0 = []`), so we destructure it.
+    rcases k₁ with - | k₁
+    · contradiction
+    have hk₁' : (i, ⟪e, y⟫) ∉ approx k₁ := Nat.find_min henum
+      (by rw [← k₁_def]; apply Nat.lt_add_one)
+    -- The fact that `(i, ⟪e, y⟫)` was enumerated at stage `k₁+1` implies that `⟪e, y⟫` is the result of `findWitness?` on stage `k₁`.
+    have ⟨hfw, hi⟩ : findWitness? i k₁ (stage k₁) = (e, y) ∧ i = k₁.unpair.1 := by
+      rcases h : findWitness? k₁.unpair.1 k₁ (stage k₁) <;>
+        simp_all [approx, stage, extend]
+    -- Also that `res (k₁+1) ⟪i, e⟫ = some k₁`.
+    have hres : res (k₁+1) ⟪i, e⟫ = .some k₁ := by
+      unfold res stage extend
+      simp [hfw, ← hi]
+    -- Since `v < y`, this enumeration must have happened at a stage `> v` (might have an off by one error here).
+    have hle : v < k₁ := hy.1.trans (findWitness?_lt hfw).2
+    -- Thus we contradict `hne_some`.
+    exact hne_some (by omega) hres
+  use ⟪e, y⟫, hnp
+  -- Suppose `e.eval (fmOracle i) ⟪e, y⟫ = 0`.
+  intro heval
+  -- Then `e.evaln i (seq2 k) ⟪e, y⟫ = 0` for `i` and `k` sufficiently large.
+  rw [eval_oracle_iff_eventually_evaln_approxOracle] at heval
+  obtain ⟨k₁, heval⟩ := heval
+  let K := ⟪i, max v k₁⟫
+  have Kge : max v k₁ ≤ K := Nat.right_le_pair _ _
+  specialize heval K (by omega) K (by omega)
+  have he_lt : e < K :=
+    lt_of_le_of_lt (Nat.left_le_pair e y) (Code.evaln_bound heval)
+  have hy_lt : y < K :=
+    lt_of_le_of_lt (Nat.right_le_pair e y) (Code.evaln_bound heval)
+  -- If `res K ⟪i, e⟫ = some j`, we can conclude immediately using `hne_some`.
+  rcases hres : res K ⟪i, e⟫ with - | j
+  case some =>
+    refine hne_some ?_ hres
+    exact le_trans (le_max_left _ _) (Nat.right_le_pair _ _)
+    -- exc
+  -- If it is `none`, then we show `findWitness? i K (stage K) = some (e, y)`. First we show it satisfies `isWitness`.
+  have hiw : isWitness i K (stage K) (e, y) := by
+    simp [isWitness, -Option.mem_def]
+    refine ⟨hres, ?_, ?_, ?_⟩
+    · intro h; exact hnp ⟨_, h⟩
+    · convert heval with a
+      simp [approxOracle, approx, ← ne_eq]
+      constructor
+      · intro ⟨ha, ha'⟩
+        use a.unpair.1, a.unpair.2
+        simp [ha']
+        exact ha.symm
+      · rintro ⟨a1, a2, ha, rfl⟩
+        simp only [Nat.unpair_pair]
+        exact ⟨ha.2.symm, ha.1⟩
+    · intro n hn
+      refine lt_trans (hres_lt hn K) ?_
+      rw [WithBot.coe_lt_coe]
+      exact lt_of_lt_of_le hy.1 (Nat.right_le_pair _ _)
+  have : (e, y) ∈ List.product (.range K) (.range K) := by
+    rw [List.pair_mem_product, List.mem_range, List.mem_range]
+    exact ⟨he_lt, hy_lt⟩
+  have hfw := List.find?_isSome.mpr ⟨_, this, hiw⟩
+  rw [Option.isSome_iff_exists] at hfw
+  obtain ⟨⟨e', y'⟩, hfw : findWitness? _ _ _ = _⟩ := hfw
+  obtain ⟨hiw', he', hy', hnw1, hnw2⟩ := List.find?_product_range.mp hfw
+  rcases lt_trichotomy e e' with hlt | rfl | hgt
+  · exact hnw1 e hlt y hy_lt hiw
+  · have hres : res (K+1) ⟪i, e⟫ = .some K := by
+      unfold res stage extend
+      simp [hfw, K]
+    exact hne_some (by omega) hres
+  · have hres : res (K+1) ⟪i, e'⟫ = .some K := by
+      unfold res stage extend
+      simp [hfw, K]
+    have := hres_lt (Nat.pair_lt_pair_right i hgt) (K+1)
+    rw [hres, WithBot.coe_lt_coe] at this
+    -- This contradicts the choice of `K ≥ v`.
+    omega
 
 open Classical in
 /--
-If `res k (2 * e)` is eventually `some j`, then there is some `x` such that `p1 x` holds, while `e.eval p2 x = 0`. Thus `e` does not compute `p1` using the oracle `p2`.
+If `res k ⟪i, e⟫` is eventually `some m`, then there is some `x` such that `p.i x` holds, while `e.eval p.(≠ i) x = 0`. Thus `e` does not compute `p.i` using the oracle `p.(≠ i)`.
 -/
-lemma res_some_even {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e) = some j)
-    : ∃ x, p1 x ∧ (ofNat Code e).eval (ofPred p2) x = 0 :=
-  sorry
+lemma res_some {i e k₀ m : ℕ} (h : ∀ k ≥ k₀, res k ⟪i, e⟫ = .some m)
+    : ∃ x, fmPred i x ∧ 0 ∈ (ofNat Code e).eval (ofPred (fmOracle i)) x
+    := by
+  -- The action must have occurred at stage `m`.
+  obtain ⟨hm, -, rfl, y, hfw⟩ := res_set_at_stage (h k₀ le_rfl)
+  -- Merge the interval `(m,k₀]` provided by `res_set_at_stage` with the interval `[k₀,∞)` provided by `h`.
+  replace hm : ∀ k > m, res k ⟪m.unpair.1, e⟫ = .some m := by grind
+  clear k₀ h
+  have hfw_spec := List.find?_some hfw
+  simp [isWitness_iff, -Option.mem_def] at hfw_spec
+  obtain ⟨-, -, hevaln, -⟩ := hfw_spec
+  -- The witness `x` is `⟪e, y⟫`.
+  refine ⟨⟪e, y⟫, ?_, ?_⟩
+  · -- Show `fmPred i ⟪e, y⟫` holds.
+    use m + 1
+    simp only [approx, stage, extend, hfw]
+    exact List.mem_cons_self
+  · -- Show `0 ∈ (ofNat Code e).eval (ofPred (fmOracle i)) ⟪e, y⟫` via the use principle.
+    rw [eval_oracle_iff_eventually_evaln_approxOracle]
+    use m
+    intro t ht k hk
+    apply Code.evalp_take at hevaln
+    apply Code.evalp_mono ht at hevaln
+    refine Code.evalp_mono_in_oracle ?_ hevaln
+    simp [ht]
+    rcases hk.lt_or_eq with hk_lt | rfl; swap
+    · simp
+    have : approxOracle m.unpair.1 (m+1) = approxOracle m.unpair.1 m := by
+      simp [approxOracle, approx, stage, extend, hfw]
+    rw [← this]
+    intro n hn
+    have := n.pair_unpair
+    generalize n.unpair.1 = q, n.unpair.2 = q' at this
+    subst this
+    have := approx_eq_of_res_eventually_eq_some hm ⟪q,q'⟫ hn.le k hk_lt
+    simp [approxOracle]
+    simp at this
+    simp [this]
 
 open Classical in
 /--
-See `res_some_even`.
-TODO: can we do without so much duplication for the even/odd cases?
+No `fmPred i` is Turing reducible to the join of the others (`fmOracle i`).
 -/
-lemma res_some_odd {e k₀ j : ℕ} (h : ∀ k ≥ k₀, res k (2 * e + 1) = some j)
-    : ∃ x, p2 x ∧ (ofNat Code e).eval (ofPred p1) x = 0 :=
-  sorry
+lemma not_fmPred_le_fmOracle (i : ℕ) : ¬(ofPred (fmPred i) ≤ᵀ ofPred (fmOracle i)) := by
+  rw [Code.exists_code, not_exists]
+  intro c
+  have hc := ofNat_encode c
+  generalize Encodable.encode c = e at hc
+  subst hc
+  apply Function.ne_iff.mpr
+  obtain ⟨k₀, hk₀⟩ := finite_injury (⟪i, e⟫ + 1)
+  obtain ⟨o, ho⟩ := hk₀ ⟪i, e⟫ (Nat.lt_succ_self _)
+  rcases o with - | j
+  · obtain ⟨x, hx_neg, hx_ne0⟩ := res_bot ho
+    use x
+    simpa [ofPred, hx_neg, Part.eq_some_iff]
+  · obtain ⟨x, hx_pos, hx_eq0⟩ := res_some ho
+    use x
+    simp [ofPred, hx_pos, Part.eq_some_iff]
+    intro hx_eq1
+    exact zero_ne_one (Part.mem_unique hx_eq0 hx_eq1)
+
+/--
+A family of functions is *mutually incomparable* if no function is Turing reducible to the join of the others.
+-/
+def MutuallyIncomparable (f : ℕ → ℕ → ℕ) : Prop :=
+  ∀ i, ¬ f i ≤ᵀ (Nat.unpaired (Function.update f i fun _ => 0) : ℕ → ℕ)
+
+/--
+A family of functions is *pairwise incomparable* if no function is Turing reducible to another.
+-/
+def PairwiseIncomparable {α} (f : α → ℕ → ℕ) : Prop :=
+  ∀ i j, i ≠ j → ¬ f i ≤ᵀ f j
+
+lemma pairwiseIncomparable_of_mutuallyIncomparable {f : ℕ → ℕ → ℕ} (hf : MutuallyIncomparable f) : PairwiseIncomparable f := by
+  intro i j hne hle
+  refine hf i (hle.trans ?_)
+  refine (TuringReducible.rfl.comp (?_ : Nat.Primrec (⟪j, ·⟫)).recursiveIn).of_eq ?_
+  · exact Nat.Primrec.pair (Nat.Primrec.const j) Nat.Primrec.id
+  · simp [hne.symm]
+
+open Classical in
+theorem mutuallyIncomparable_fmPred : MutuallyIncomparable (ofRel fmPred) := by
+  unfold MutuallyIncomparable
+  convert not_fmPred_le_fmOracle with i
+  funext x
+  by_cases hx1 : x.unpair.1 = i <;> simp [Function.update, ofRel, ofPred, fmOracle, fmPred, approxOracle_eq, Bool.toNat, hx1]
+  congr
+  funext k
+  simp only [eq_iff_iff]
+  refine ⟨?_, ?_⟩
+  · intro h
+    exact ⟨x.unpair.1, x.unpair.2, by simpa⟩
+  · rintro ⟨a, b, h, rfl⟩
+    simpa
 
 open Classical in
 /--
-The **Friedberg-Muchnik Theorem**: there exist two Turing-incomparable RE predicates.
+The **Friedberg-Muchnik Theorem**: there exists a mutually incomparable family of uniformly RE predicates.
 -/
-theorem exists_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPred q ∧ ¬(ofPred p ≤ᵀ ofPred q) ∧ ¬(ofPred q ≤ᵀ ofPred p) := by
-  use p1, p2, re_p1, re_p2
-  simp only [Code.exists_code, not_exists]
-  refine ⟨fun c => ?_, fun c => ?_⟩
-  · -- Goal: eval c (ofPred p2) ≠ ofPred p1
-    apply Function.ne_iff.mpr
-    let e := Encodable.encode c
-    have hce : ofNat Code e = c := ofNat_encode c
-    obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 1)
-    obtain ⟨o, ho⟩ := hk₀ (2 * e) (Nat.lt_succ_self _)
-    rcases o with - | j
-    · obtain ⟨x, hx_neg, hx_ne⟩ := res_none_even ho
-      use x
-      simpa [← hce, ofPred, hx_neg, Part.eq_some_iff]
-    · obtain ⟨x, hx_pos, hx_eq⟩ := res_some_even ho
-      use x
-      simp [← hce, hx_eq, ofPred, hx_pos]
-      exact fun h => Nat.zero_ne_one (Part.some_inj.mp h)
-  · -- Symmetric argument for the other direction
-    apply Function.ne_iff.mpr
-    let e := Encodable.encode c
-    have hce : ofNat Code e = c := ofNat_encode c
-    obtain ⟨k₀, hk₀⟩ := finite_injury (2 * e + 2)
-    obtain ⟨o, ho⟩ := hk₀ (2 * e + 1) (Nat.lt_succ_self _)
-    rcases o with - | j
-    · obtain ⟨x, hx_neg, hx_ne⟩ := res_none_odd ho
-      use x
-      simpa [← hce, ofPred, hx_neg]
-    · obtain ⟨x, hx_pos, hx_eq⟩ := res_some_odd ho
-      use x
-      simp [← hce, hx_eq, ofPred, hx_pos]
-      exact fun h => Nat.zero_ne_one (Part.some_inj.mp h)
+theorem exists_mutuallyIncomparable_rePreds : ∃ p : ℕ → ℕ → Prop, REPred (Nat.unpaired p) ∧ MutuallyIncomparable (ofRel p) :=
+  ⟨ fmPred, re_fmPred, mutuallyIncomparable_fmPred ⟩
 
-end Computability
+open Classical in
+/--
+This is the classical statement of Friedberg-Muchnik.
+-/
+theorem exists_two_incomparable_rePreds : ∃ p q : ℕ → Prop, REPred p ∧ REPred q ∧ ¬(ofPred p ≤ᵀ ofPred q) ∧ ¬(ofPred q ≤ᵀ ofPred p) :=
+  have h := pairwiseIncomparable_of_mutuallyIncomparable mutuallyIncomparable_fmPred
+  ⟨ fmPred 0, fmPred 1,
+    re_fmPred_fiber 0, re_fmPred_fiber 1,
+    h 0 1 Nat.zero_ne_one, h 1 0 Nat.one_ne_zero ⟩
+
+end Computability.FriedbergMuchnik
