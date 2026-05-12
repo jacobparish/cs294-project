@@ -1,3 +1,9 @@
+/-
+Copyright (c) 2026 Jacob Parish and Yvette Ren. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Jacob Parish, Yvette Ren.
+-/
+
 module
 
 public import Project.OracleCode
@@ -7,8 +13,6 @@ namespace List
 
 /--
 Given a sequence of lists `s : ℕ → List α` such that `n < (s n).length` for every `n`, we can define their limit: `limit s hs n` is defined to be `(s n)[n]`.
-
-TODO: does something like this already exist in mathlib?
 -/
 def limit {α} (s : ℕ → List α) (hs : ∀ n, n < (s n).length) : ℕ → α :=
   fun n => (s n).get ⟨n, hs n⟩
@@ -59,7 +63,7 @@ end List
 
 namespace TuringDegree
 
-open Nat.RecursiveIn
+open Computability Nat.RecursiveIn
 
 noncomputable section
 
@@ -268,11 +272,10 @@ lemma lt_length_seq2 (n : ℕ) : n < (seq2 n).length := by
 /--
 The **Kleene-Post Theorem**: there exist two incomparable Turing degrees.
 -/
-theorem exists_incomparable_turingDegrees : ∃ a b : TuringDegree, ¬(a ≤ b) ∧ ¬(b ≤ a) := by
+theorem exists_incomparable_turingDegrees : ∃ f g : ℕ → ℕ, ¬(f ≤ᵀ g) ∧ ¬(g ≤ᵀ f) := by
   let f := List.limit seq1 lt_length_seq1
   let g := List.limit seq2 lt_length_seq2
-  use ⟦f⟧, ⟦g⟧
-  change ¬TuringReducible f g ∧ ¬TuringReducible g f
+  use f, g
   constructor <;> rw [Code.exists_code] <;> intro ⟨c, hc⟩
   · let n := Encodable.encode c
     -- `p` is what gets fed into `extend c` to ensure `¬ (f ≤ᵀ g)`.
