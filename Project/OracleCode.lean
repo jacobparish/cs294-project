@@ -40,24 +40,13 @@ It also defines the evaluation of a `RecursiveIn.Code` as a partial function, an
 open Encodable Denumerable
 
 
-namespace RecursiveIn
+namespace Nat.RecursiveIn
 
-theorem rfind' {O f} (hf : RecursiveIn O f) :
-    RecursiveIn O
+theorem rfind' {O f} (hf : Nat.RecursiveIn O f) :
+    Nat.RecursiveIn O
       (Nat.unpaired fun a m =>
         (Nat.rfind fun n => (fun m => m = 0) <$> f (Nat.pair a (n + m))).map (· + m)) :=
   by
-    have recIn_of_partrec : ∀ {g : ℕ →. ℕ}, Nat.Partrec g → RecursiveIn O g := by
-      intro g hg
-      induction hg with
-      | zero => exact .zero
-      | succ => exact .succ
-      | left => exact .left
-      | right => exact .right
-      | pair hf hh ihf ihh => exact .pair ihf ihh
-      | comp hf hh ihf ihh => exact .comp ihf ihh
-      | prec hf hh ihf ihh => exact .prec ihf ihh
-      | rfind hf ihf => exact .rfind ihf
     let shift : ℕ → ℕ := fun x =>
       Nat.pair (Nat.unpair (Nat.unpair x).1).1 ((Nat.unpair x).2 + (Nat.unpair (Nat.unpair x).1).2)
     have hshift_primrec : Primrec shift :=
@@ -66,28 +55,28 @@ theorem rfind' {O f} (hf : RecursiveIn O f) :
           (Primrec.nat_add.comp
             (Primrec.snd.comp Primrec.unpair)
             (Primrec.snd.comp (Primrec.unpair.comp (Primrec.fst.comp Primrec.unpair))))
-    have hshift : RecursiveIn O (fun x => shift x) :=
-      recIn_of_partrec (Partrec.nat_iff.mp hshift_primrec.to_comp.partrec)
-    have hcore : RecursiveIn O (fun x => f (shift x)) := by
-      simpa [Part.bind_eq_bind, shift] using (RecursiveIn.comp hf hshift)
-    have hrfind : RecursiveIn O (fun p =>
+    have hshift : Nat.RecursiveIn O (fun x => shift x) :=
+      (Partrec.nat_iff.mp hshift_primrec.to_comp.partrec).recursiveIn
+    have hcore : Nat.RecursiveIn O (fun x => f (shift x)) := by
+      simpa [Part.bind_eq_bind, shift] using (Nat.RecursiveIn.comp hf hshift)
+    have hrfind : Nat.RecursiveIn O (fun p =>
       Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2)))) := by
-      simpa [shift, Nat.unpair_pair] using (RecursiveIn.rfind hcore)
+      simpa [shift, Nat.unpair_pair] using (Nat.RecursiveIn.rfind hcore)
     let addPair : ℕ → ℕ := fun z => (Nat.unpair z).1 + (Nat.unpair z).2
     have haddPair_primrec : Primrec addPair := by
       dsimp [addPair]
       exact Primrec.nat_add.comp (Primrec.fst.comp Primrec.unpair) (Primrec.snd.comp Primrec.unpair)
-    have haddPair : RecursiveIn O (fun z => addPair z) :=
-      recIn_of_partrec (Partrec.nat_iff.mp haddPair_primrec.to_comp.partrec)
+    have haddPair : Nat.RecursiveIn O (fun z => addPair z) :=
+      (Partrec.nat_iff.mp haddPair_primrec.to_comp.partrec).recursiveIn
     have hpair :
-        RecursiveIn O (fun p =>
+        Nat.RecursiveIn O (fun p =>
           Nat.pair <$> (Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2))))
             <*> Part.some (Nat.unpair p).2) := by
-      exact RecursiveIn.pair hrfind RecursiveIn.right
-    have hfinal : RecursiveIn O (fun p =>
+      exact Nat.RecursiveIn.pair hrfind Nat.RecursiveIn.right
+    have hfinal : Nat.RecursiveIn O (fun p =>
       (Nat.rfind (fun n => (fun m => m = 0) <$> f (Nat.pair (Nat.unpair p).1 (n + (Nat.unpair p).2)))).map
         (fun n => n + (Nat.unpair p).2)) := by
-      convert (RecursiveIn.comp haddPair hpair) using 1
+      convert (Nat.RecursiveIn.comp haddPair hpair) using 1
       funext n
       have hfg :
           (fun n_1 => n_1 + (Nat.unpair n).2) =
@@ -113,9 +102,9 @@ inductive Code : Type
 
 compile_inductive% Code
 
-end RecursiveIn
+end Nat.RecursiveIn
 
-namespace RecursiveIn.Code
+namespace Nat.RecursiveIn.Code
 
 open Nat Nat.Partrec
 
@@ -242,11 +231,11 @@ theorem encode_lt_rfind' (cf) : encode cf < encode (rfind' cf) := by
   simp only [encodeCode_eq, encodeCode]
   lia
 
-end RecursiveIn.Code
+end Nat.RecursiveIn.Code
 
 section
 open Nat Primrec
-namespace RecursiveIn.Code
+namespace Nat.RecursiveIn.Code
 
 theorem primrec₂_pair : Primrec₂ pair :=
   Primrec₂.ofNat_iff.2 <|
@@ -389,13 +378,13 @@ theorem primrec_recOn {α σ}
     (pc := fun a b => pc a b.1 b.2.1 b.2.2.1 b.2.2.2) (.mk hpc)
     (rf := fun a b => rf a b.1 b.2) (.mk hrf)
 
-end RecursiveIn.Code
+end Nat.RecursiveIn.Code
 end
 
-namespace RecursiveIn.Code
+namespace Nat.RecursiveIn.Code
 section
 
-open Nat Computable
+open Computable
 
 /-- Recursion on `RecursiveIn.Code` is computable. -/
 theorem computable_recOn {α σ} [Primcodable α] [Primcodable σ] {c : α → Code} (hc : Computable c)
@@ -574,6 +563,7 @@ theorem smn :
 
 /-- A function `f` is Turing reducible to `g` if and only if there is a `Code` which evaluates to `f`, given oracle `g`. -/
 theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code, eval c g = f := by
+  rw [TuringReducible, RecursiveIn.iff_nat]
   refine ⟨fun h => ?_, ?_⟩
   · induction h with
     | zero => exact ⟨zero, rfl⟩
@@ -596,14 +586,14 @@ theorem exists_code {f g : ℕ →. ℕ} : TuringReducible f g ↔ ∃ c : Code,
       simp [eval, Seq.seq, pure, PFun.pure, Part.map_id']
   · rintro ⟨c, rfl⟩
     induction c with
-    | zero => exact RecursiveIn.zero
-    | succ => exact RecursiveIn.succ
-    | left => exact RecursiveIn.left
-    | right => exact RecursiveIn.right
-    | oracle => exact TuringReducible.refl g
+    | zero => exact Nat.RecursiveIn.zero
+    | succ => exact Nat.RecursiveIn.succ
+    | left => exact Nat.RecursiveIn.left
+    | right => exact Nat.RecursiveIn.right
+    | oracle => exact Nat.RecursiveIn.oracle g (Set.mem_singleton _)
     | pair cf cg pf pg => exact pf.pair pg
     | comp cf cg pf pg => exact pf.comp pg
     | prec cf cg pf pg => exact pf.prec pg
     | rfind' cf pf => exact pf.rfind'
 
-end RecursiveIn.Code
+end Nat.RecursiveIn.Code
